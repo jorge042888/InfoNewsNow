@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EspacioTech - Noticias Ciencia y Tecnologia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app">
+    <!-- Title Bar -->
+    <header class="title-bar">
+      <div class="window-controls">
+        <span class="dot close"></span>
+        <span class="dot minimize"></span>
+        <span class="dot maximize"></span>
+      </div>
+      <div class="title-text">
+        <span class="title-icon"><i class="fas fa-code"></i></span>
+        <span>TechNews Hub —</span>
+        <span class="title-path">~/noticias/ciencia-tecnologia</span>
+      </div>
+    </header>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar" id="tabBar">
+      <button class="tab active" data-category="technology">
+        <span class="tab-icon"><i class="fas fa-microchip"></i></span>
+        Tecnología
+      </button>
+      <button class="tab" data-category="science">
+        <span class="tab-icon"><i class="fas fa-flask"></i></span>
+        Ciencia
+      </button>
+      <button class="tab" data-category="all">
+        <span class="tab-icon"><i class="fas fa-layer-group"></i></span>
+        Todas
+      </button>
+      <div class="tab-spacer"></div>
+      <button class="tab refresh-btn" id="refreshBtn" title="Recargar">
+        <span class="tab-icon"><i class="fas fa-sync-alt"></i></span>
+      </button>
+    </nav>
+
+    <div class="main-layout">
+
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="section-header">EXPLORADOR</div>
+        <div class="sidebar-item active">
+          <span class="si-icon"><i class="fas fa-folder-open"></i></span>
+          noticias
+        </div>
+        <div class="sidebar-item">
+          <span class="si-icon"><i class="fas fa-folder"></i></span>
+          ciencia
+        </div>
+        <div class="sidebar-item">
+          <span class="si-icon"><i class="fas fa-folder"></i></span>
+          tecnologia
+        </div>
+
+        <div class="section-header" style="margin-top: 24px;">ESTADO</div>
+        <div class="status-panel" id="statusPanel">
+          <div class="stat-row">
+            <span class="stat-label">Solicitudes</span>
+            <span class="stat-value" id="requestCount">0/100</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Artículos</span>
+            <span class="stat-value" id="articleCount">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Caché</span>
+            <span class="stat-value" id="cacheStatus">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">Estado</span>
+            <span class="stat-value green" id="apiStatus">—</span>
+          </div>
+        </div>
+
+        <div class="section-header" style="margin-top: 24px;">FILTRO</div>
+        <div class="search-box">
+          <span class="search-prompt">$</span>
+          <input type="text" id="searchInput" placeholder="grep --filter &quot;tema&quot;" autocomplete="off">
+        </div>
+      </aside>
+
+      <!-- Content -->
+      <main class="content">
+        <div class="content-header">
+          <div class="breadcrumb">
+            <span class="bc-active" id="currentCategoryLabel">Tecnología</span>
+            <span class="bc-sep">/</span>
+            <span class="bc-result-count" id="resultCount">0 artículos</span>
+          </div>
+          <div class="view-controls">
+            <button class="view-btn active" id="viewGrid" title="Grid"><i class="fas fa-th"></i></button>
+            <button class="view-btn" id="viewList" title="Lista"><i class="fas fa-list"></i></button>
+          </div>
+        </div>
+
+        <!-- Loading Skeleton -->
+        <div class="skeleton-grid" id="skeletonGrid">
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+        </div>
+
+        <!-- Error Banner -->
+        <div class="error-banner" id="errorBanner" style="display:none">
+          <span class="error-icon"><i class="fas fa-exclamation-triangle"></i></span>
+          <span id="errorMessage">Error al cargar noticias</span>
+          <button class="error-close" id="errorClose">&times;</button>
+        </div>
+
+        <!-- News Grid -->
+        <div class="news-grid" id="newsGrid"></div>
+      </main>
+
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="sb-left">
+        <span class="sb-item"><i class="fas fa-cog"></i> GNews API</span>
+        <span class="sb-item" id="sbConnection"><i class="fas fa-circle-notch fa-spin"></i> Conectando...</span>
+      </div>
+      <div class="sb-right">
+        <span class="sb-item" id="sbTime"><i class="far fa-clock"></i> --:--</span>
+        <span class="sb-item">UTF-8</span>
+        <span class="sb-item"><i class="fab fa-js"></i></span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

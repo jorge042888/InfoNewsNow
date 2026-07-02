@@ -78,6 +78,7 @@ function bindEvents() {
   DOM.searchInput.addEventListener('input', debounce((e) => {
     const q = e.target.value.trim();
     if (q.length < 2) {
+      if (searchAbortController) searchAbortController.abort();
       if (STATE.category === 'all') loadAll();
       else loadNews(STATE.category);
       return;
@@ -201,9 +202,14 @@ function loadAll() {
     });
 }
 
+let searchAbortController = null;
+
 function searchNews(query) {
   showSkeleton();
   hideError();
+
+  if (searchAbortController) searchAbortController.abort();
+  searchAbortController = new AbortController();
 
   const params = new URLSearchParams({
     q: query,
@@ -216,8 +222,11 @@ function searchNews(query) {
   STATE.requestCount++;
   updateStats();
 
-  fetch(`${CONFIG.apiUrl}/search?${params}`)
-    .then(r => r.json())
+  fetch(`${CONFIG.apiUrl}/search?${params}`, { signal: searchAbortController.signal })
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+      return r.json();
+    })
     .then(data => {
       if (data.errors) throw new Error(data.errors[0]?.message || 'Error de búsqueda');
       STATE.articles = data.articles || [];
@@ -225,6 +234,7 @@ function searchNews(query) {
       updateStats();
     })
     .catch(err => {
+      if (err.name === 'AbortError') return;
       showError(err.message);
       hideSkeleton();
     });
@@ -255,7 +265,7 @@ function renderArticles(articles) {
 
     return `
       <a class="news-card" style="animation-delay:${i * 0.04}s" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
-        <img class="news-card-image" src="${image}" alt="${title}" loading="lazy"
+        <img class="news-card-image" src="${escapeHtml(image)}" alt="${escapeHtml(title)}" loading="lazy"
              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2321262d%22 width=%22340%22 height=%22180%22/><text fill=%22%236e7681%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22monospace%22>No Image</text></svg>'">
         <div class="news-card-body">
           <div class="news-card-source">
@@ -300,49 +310,9 @@ function updateStats() {
   DOM.cacheStatus.textContent = STATE.cacheStatus;
 }
 
-function formatDate(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const now = new Date();
-  const diff = now - d;
-  const mins = Math.floor(diff / 60000);
-  const hrs = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (mins < 60) return `${mins}m`;
-  if (hrs < 24) return `${hrs}h`;
-  if (days < 7) return `${days}d`;
-  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-}
-
 function updateClock() {
   const now = new Date();
   DOM.sbTime.innerHTML = `<i class="far fa-clock"></i> ${now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function interleave(a, b) {
-  const result = [];
-  const len = Math.max(a.length, b.length);
-  for (let i = 0; i < len; i++) {
-    if (i < a.length) result.push(a[i]);
-    if (i < b.length) result.push(b[i]);
-  }
-  return result;
-}
-
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
 }
 
 document.addEventListener('DOMContentLoaded', init);

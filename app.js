@@ -1,24 +1,83 @@
 const CONFIG = {
-  apiKey: '4db32ab0a906a065b648342044542ee5',
-  apiUrl: 'https://gnews.io/api/v4',
+  apiUrl: '/api/v4',
   maxResults: 12,
   lang: 'es',
   country: 'mx',
+  cacheTTL: 10 * 60 * 1000,
 };
 
 const STATE = {
   category: 'technology',
   articles: [],
   view: 'grid',
-  requestCount: 0,
+  searchActive: false,
   cacheStatus: '—',
 };
 
 const DOM = {};
 
+const CACHE_PREFIX = 'technews:cache:';
+const REQ_COUNTER_KEY = 'technews:req';
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getRequestCount() {
+  try {
+    const raw = localStorage.getItem(REQ_COUNTER_KEY);
+    if (!raw) return 0;
+    const { date, count } = JSON.parse(raw);
+    return date === todayKey() ? count : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementRequestCount(n = 1) {
+  const count = getRequestCount() + n;
+  try {
+    localStorage.setItem(REQ_COUNTER_KEY, JSON.stringify({ date: todayKey(), count }));
+  } catch { /* almacenamiento no disponible */ }
+  return count;
+}
+
+function cacheGet(key) {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (Date.now() - ts > CONFIG.cacheTTL) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function cacheSet(key, data) {
+  try {
+    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
+    pruneCache();
+  } catch { /* cuota llena */ }
+}
+
+function pruneCache() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(CACHE_PREFIX)) continue;
+      const { ts } = JSON.parse(localStorage.getItem(k) || '{}');
+      if (!ts || Date.now() - ts > CONFIG.cacheTTL) localStorage.removeItem(k);
+    }
+  } catch { /* ignorar */ }
+}
+
 function init() {
   cacheDom();
   bindEvents();
+  syncNav();
+  updateStats();
   updateClock();
   setInterval(updateClock, 1000);
   loadNews('technology');
@@ -43,36 +102,36 @@ function cacheDom() {
   DOM.sbTime = document.getElementById('sbTime');
   DOM.viewGrid = document.getElementById('viewGrid');
   DOM.viewList = document.getElementById('viewList');
-  DOM.sidebarItems = document.querySelectorAll('.sidebar-item');
+  DOM.sidebarItems = document.querySelectorAll('.sidebar-item[data-category]');
 }
 
 function bindEvents() {
   DOM.tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      DOM.tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const category = tab.dataset.category;
-      if (category !== 'all') {
-        loadNews(category);
+    tab.addEventListener('click', () => setCategory(tab.dataset.category));
+  });
+
+  DOM.sidebarItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const cat = item.dataset.category;
+      if (cat === 'current') {
+        DOM.searchInput.value = '';
+        if (STATE.category === 'all') loadAll();
+        else loadNews(STATE.category);
       } else {
-        loadAll();
+        setCategory(cat);
       }
     });
   });
 
-  DOM.sidebarItems.forEach((item, idx) => {
-    item.addEventListener('click', () => {
-      DOM.sidebarItems.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-      if (idx === 0) loadNews(STATE.category);
-      else if (idx === 1) loadNews('science');
-      else if (idx === 2) loadNews('technology');
-    });
-  });
-
   DOM.refreshBtn.addEventListener('click', () => {
-    if (STATE.category === 'all') loadAll();
-    else loadNews(STATE.category);
+    const q = DOM.searchInput.value.trim();
+    if (STATE.searchActive && q.length >= 2) {
+      searchNews(q, { force: true });
+    } else if (STATE.category === 'all') {
+      loadAll({ force: true });
+    } else {
+      loadNews(STATE.category, { force: true });
+    }
   });
 
   DOM.searchInput.addEventListener('input', debounce((e) => {
@@ -103,111 +162,202 @@ function bindEvents() {
     STATE.view = 'list';
     DOM.newsGrid.classList.add('list-view');
   });
-
 }
 
-function loadNews(category) {
+function setCategory(category) {
   STATE.category = category;
+  STATE.searchActive = false;
+  DOM.searchInput.value = '';
+  syncNav();
+  if (category === 'all') loadAll();
+  else loadNews(category);
+}
 
+function syncNav() {
+  const cat = STATE.category;
+  DOM.tabs.forEach(t => t.classList.toggle('active', t.dataset.category === cat));
+  DOM.sidebarItems.forEach(item => {
+    const dc = item.dataset.category;
+    const active = dc === 'current' ? cat !== 'science' && cat !== 'technology' : dc === cat;
+    item.classList.toggle('active', active);
+  });
+}
+
+function updateCategoryLabel(category) {
   const labelMap = {
     technology: 'Tecnología',
     science: 'Ciencia',
+    all: 'Todas',
   };
   DOM.currentCategoryLabel.textContent = labelMap[category] || category;
+}
 
-  showSkeleton();
+function setApiStatus(online) {
+  if (online) {
+    DOM.apiStatus.innerHTML = '<i class="fas fa-check-circle"></i> Online';
+    DOM.apiStatus.className = 'stat-value green';
+    DOM.sbConnection.innerHTML = '<i class="fas fa-check-circle"></i> Conectado';
+  } else {
+    DOM.apiStatus.innerHTML = '<i class="fas fa-times-circle"></i> Offline';
+    DOM.apiStatus.className = 'stat-value red';
+    DOM.sbConnection.innerHTML = '<i class="fas fa-times-circle"></i> Desconectado';
+  }
+}
+
+function showApiError(err) {
+  console.error(err);
+  STATE.cacheStatus = 'Fallo';
+  setApiStatus(false);
+  showError(err.message);
+  hideSkeleton();
+  updateStats();
+}
+
+function showApiSuccess(articles, cacheStatus) {
+  STATE.articles = articles;
+  STATE.cacheStatus = cacheStatus;
+  if (cacheStatus !== 'Local') setApiStatus(true);
+  renderArticles(articles);
+  updateStats();
+}
+
+let navAbortController = null;
+
+function abortNav() {
+  if (navAbortController) navAbortController.abort();
+  navAbortController = new AbortController();
+  return navAbortController.signal;
+}
+
+function loadNews(category, { force = false } = {}) {
+  STATE.category = category;
+  STATE.searchActive = false;
+  updateCategoryLabel(category);
+  syncNav();
   hideError();
+
+  const cacheKey = `cat:${category}:${CONFIG.lang}:${CONFIG.country}`;
+  if (!force) {
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      abortNav();
+      showApiSuccess(cached, 'Local');
+      return;
+    }
+  }
+
+  const signal = abortNav();
+  showSkeleton();
 
   const params = new URLSearchParams({
     topic: category,
     lang: CONFIG.lang,
     country: CONFIG.country,
     max: CONFIG.maxResults,
-    apikey: CONFIG.apiKey,
   });
 
-  STATE.requestCount++;
+  incrementRequestCount();
   updateStats();
 
-  fetch(`${CONFIG.apiUrl}/top-headlines?${params}`)
+  fetch(`${CONFIG.apiUrl}/top-headlines?${params}`, { signal })
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
       return r.json();
     })
     .then(data => {
       if (data.errors) throw new Error(data.errors[0]?.message || 'Error de API');
-      STATE.articles = data.articles || [];
-      STATE.cacheStatus = 'Activa';
-      DOM.apiStatus.innerHTML = '<i class="fas fa-check-circle"></i> Online';
-      DOM.apiStatus.className = 'stat-value green';
-      DOM.sbConnection.innerHTML = '<i class="fas fa-check-circle"></i> Conectado';
-      renderArticles(STATE.articles);
-      updateStats();
+      const articles = data.articles || [];
+      cacheSet(cacheKey, articles);
+      showApiSuccess(articles, 'Activa');
     })
     .catch(err => {
-      console.error(err);
-      STATE.cacheStatus = 'Fallo';
-      DOM.apiStatus.innerHTML = '<i class="fas fa-times-circle"></i> Offline';
-      DOM.apiStatus.className = 'stat-value red';
-      DOM.sbConnection.innerHTML = '<i class="fas fa-times-circle"></i> Desconectado';
-      showError(err.message);
-      hideSkeleton();
-      updateStats();
+      if (err.name === 'AbortError') return;
+      showApiError(err);
     });
 }
 
-function loadAll() {
+function loadAll({ force = false } = {}) {
   STATE.category = 'all';
-  DOM.currentCategoryLabel.textContent = 'Todas';
-
-  showSkeleton();
+  STATE.searchActive = false;
+  updateCategoryLabel('all');
+  syncNav();
   hideError();
 
-  STATE.requestCount++;
-  updateStats();
+  const cacheKey = `all:${CONFIG.lang}:${CONFIG.country}`;
+  if (!force) {
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      abortNav();
+      showApiSuccess(cached, 'Local');
+      return;
+    }
+  }
+
+  const signal = abortNav();
+  showSkeleton();
 
   const topics = ['technology', 'science'];
+  incrementRequestCount(2);
+  updateStats();
+
   const promises = topics.map(topic => {
     const params = new URLSearchParams({
       topic,
       lang: CONFIG.lang,
       country: CONFIG.country,
       max: 6,
-      apikey: CONFIG.apiKey,
     });
-    return fetch(`${CONFIG.apiUrl}/top-headlines?${params}`).then(r => r.json());
+    return fetch(`${CONFIG.apiUrl}/top-headlines?${params}`, { signal })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        return r.json();
+      })
+      .then(data => {
+        if (data.errors) throw new Error(data.errors[0]?.message || 'Error de API');
+        return data.articles || [];
+      });
   });
 
-  Promise.all(promises)
-    .then(([tech, science]) => {
-      const techArts = (tech.articles || []).map(a => ({ ...a, _cat: 'Tecnología' }));
-      const sciArts = (science.articles || []).map(a => ({ ...a, _cat: 'Ciencia' }));
-      STATE.articles = interleave(techArts, sciArts);
-      STATE.cacheStatus = 'Activa';
-      DOM.apiStatus.innerHTML = '<i class="fas fa-check-circle"></i> Online';
-      DOM.apiStatus.className = 'stat-value green';
-      DOM.sbConnection.innerHTML = '<i class="fas fa-check-circle"></i> Conectado';
-      renderArticles(STATE.articles);
-      updateStats();
+  Promise.allSettled(promises)
+    .then(([techRes, sciRes]) => {
+      const rejected = [techRes, sciRes].filter(r => r.status === 'rejected');
+      if (rejected.some(r => r.reason?.name === 'AbortError')) return;
+      if (rejected.length === 2) throw rejected[0].reason;
+
+      const techArts = techRes.status === 'fulfilled'
+        ? techRes.value.map(a => ({ ...a, _cat: 'Tecnología' }))
+        : [];
+      const sciArts = sciRes.status === 'fulfilled'
+        ? sciRes.value.map(a => ({ ...a, _cat: 'Ciencia' }))
+        : [];
+
+      const articles = interleave(techArts, sciArts);
+      cacheSet(cacheKey, articles);
+      showApiSuccess(articles, rejected.length ? 'Parcial' : 'Activa');
     })
     .catch(err => {
-      console.error(err);
-      STATE.cacheStatus = 'Fallo';
-      DOM.apiStatus.innerHTML = '<i class="fas fa-times-circle"></i> Offline';
-      DOM.apiStatus.className = 'stat-value red';
-      DOM.sbConnection.innerHTML = '<i class="fas fa-times-circle"></i> Desconectado';
-      showError(err.message);
-      hideSkeleton();
-      updateStats();
+      if (err?.name === 'AbortError') return;
+      showApiError(err);
     });
 }
 
 let searchAbortController = null;
 
-function searchNews(query) {
-  showSkeleton();
+function searchNews(query, { force = false } = {}) {
+  STATE.searchActive = true;
   hideError();
 
+  const cacheKey = `search:${query}:${CONFIG.lang}:${CONFIG.country}`;
+  if (!force) {
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      if (searchAbortController) searchAbortController.abort();
+      showApiSuccess(cached, 'Local');
+      return;
+    }
+  }
+
+  showSkeleton();
   if (searchAbortController) searchAbortController.abort();
   searchAbortController = new AbortController();
 
@@ -216,10 +366,9 @@ function searchNews(query) {
     lang: CONFIG.lang,
     country: CONFIG.country,
     max: CONFIG.maxResults,
-    apikey: CONFIG.apiKey,
   });
 
-  STATE.requestCount++;
+  incrementRequestCount();
   updateStats();
 
   fetch(`${CONFIG.apiUrl}/search?${params}`, { signal: searchAbortController.signal })
@@ -229,14 +378,13 @@ function searchNews(query) {
     })
     .then(data => {
       if (data.errors) throw new Error(data.errors[0]?.message || 'Error de búsqueda');
-      STATE.articles = data.articles || [];
-      renderArticles(STATE.articles);
-      updateStats();
+      const articles = data.articles || [];
+      cacheSet(cacheKey, articles);
+      showApiSuccess(articles, 'Activa');
     })
     .catch(err => {
       if (err.name === 'AbortError') return;
-      showError(err.message);
-      hideSkeleton();
+      showApiError(err);
     });
 }
 
@@ -297,7 +445,7 @@ function hideSkeleton() {
 }
 
 function showError(msg) {
-  DOM.errorMessage.textContent = `Error: ${msg || 'No se pudieron cargar las noticias. Verifica tu API key en app.js'}`;
+  DOM.errorMessage.textContent = `Error: ${msg || 'No se pudieron cargar las noticias. Intenta de nuevo más tarde.'}`;
   DOM.errorBanner.style.display = 'flex';
 }
 
@@ -306,7 +454,7 @@ function hideError() {
 }
 
 function updateStats() {
-  DOM.requestCount.textContent = `${STATE.requestCount}/100`;
+  DOM.requestCount.textContent = `${getRequestCount()}/100 hoy`;
   DOM.cacheStatus.textContent = STATE.cacheStatus;
 }
 

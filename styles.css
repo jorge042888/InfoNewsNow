@@ -42,6 +42,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -49,6 +50,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 /* ── Title Bar ── */
@@ -243,7 +245,10 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 8px 16px;
+  margin: 0 16px;
+  flex: 1;
+  max-width: 380px;
+  min-width: 140px;
   padding: 6px 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -648,7 +653,8 @@ body {
     display: none;
   }
 
-  .news-grid {
+  .news-grid,
+  .skeleton-grid {
     grid-template-columns: 1fr;
   }
 
@@ -682,7 +688,12 @@ body {
 
   .content-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 8px;
+  }
+
+  .search-box {
+    max-width: none;
+    margin: 0;
   }
 }

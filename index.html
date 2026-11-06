@@ -51,15 +51,15 @@
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="section-header">EXPLORADOR</div>
-        <div class="sidebar-item active">
+        <div class="sidebar-item active" data-category="current">
           <span class="si-icon"><i class="fas fa-folder-open"></i></span>
           noticias
         </div>
-        <div class="sidebar-item">
+        <div class="sidebar-item" data-category="science">
           <span class="si-icon"><i class="fas fa-folder"></i></span>
           ciencia
         </div>
-        <div class="sidebar-item">
+        <div class="sidebar-item" data-category="technology">
           <span class="si-icon"><i class="fas fa-folder"></i></span>
           tecnologia
         </div>
@@ -83,12 +83,6 @@
             <span class="stat-value green" id="apiStatus">—</span>
           </div>
         </div>
-
-        <div class="section-header" style="margin-top: 24px;">FILTRO</div>
-        <div class="search-box">
-          <span class="search-prompt">$</span>
-          <input type="text" id="searchInput" placeholder="grep --filter &quot;tema&quot;" autocomplete="off">
-        </div>
       </aside>
 
       <!-- Content -->
@@ -98,6 +92,10 @@
             <span class="bc-active" id="currentCategoryLabel">Tecnología</span>
             <span class="bc-sep">/</span>
             <span class="bc-result-count" id="resultCount">0 artículos</span>
+          </div>
+          <div class="search-box">
+            <span class="search-prompt">$</span>
+            <input type="text" id="searchInput" placeholder="grep --filter &quot;tema&quot;" autocomplete="off">
           </div>
           <div class="view-controls">
             <button class="view-btn active" id="viewGrid" title="Grid"><i class="fas fa-th"></i></button>

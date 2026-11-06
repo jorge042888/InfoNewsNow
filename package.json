@@ -2,6 +2,7 @@
   "name": "technews-landing",
   "private": true,
   "scripts": {
-    "test": "node --test tests"
+    "start": "node server.js",
+    "test": "node --test \"tests/**/*.test.js\""
   }
 }

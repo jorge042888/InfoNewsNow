@@ -105,5 +105,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`TechNews Hub → http://localhost:${PORT}`);
+  console.log(`InfoNewsNow → http://localhost:${PORT}`);
 });

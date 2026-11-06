@@ -1,23 +1,40 @@
 const CONFIG = {
   apiUrl: '/api/v4',
-  maxResults: 12,
+  maxResults: 10,
   lang: 'es',
   country: 'mx',
   cacheTTL: 10 * 60 * 1000,
 };
 
+const CATEGORIES = [
+  { id: 'technology', label: 'Tecnología', color: '#58a6ff' },
+  { id: 'science', label: 'Ciencia', color: '#bc8cff' },
+  { id: 'world', label: 'Mundo', color: '#f0883e' },
+  { id: 'business', label: 'Negocios', color: '#3fb950' },
+  { id: 'sports', label: 'Deportes', color: '#ff7b72' },
+  { id: 'entertainment', label: 'Entretenimiento', color: '#ffd666' },
+  { id: 'health', label: 'Salud', color: '#f778ba' },
+  { id: 'general', label: 'Todas', color: '#8b949e' },
+];
+
 const STATE = {
   category: 'technology',
+  mode: 'feed',
   articles: [],
   view: 'grid',
   searchActive: false,
   cacheStatus: '—',
 };
 
-const DOM = {};
+const STORAGE = {
+  cache: 'infonewsnow:cache:',
+  req: 'infonewsnow:req',
+  favs: 'infonewsnow:favs',
+  legacy: 'technews:',
+};
 
-const CACHE_PREFIX = 'technews:cache:';
-const REQ_COUNTER_KEY = 'technews:req';
+const FAV_MAX = 50;
+const DOM = {};
 
 function todayKey() {
   const d = new Date();
@@ -26,7 +43,7 @@ function todayKey() {
 
 function getRequestCount() {
   try {
-    const raw = localStorage.getItem(REQ_COUNTER_KEY);
+    const raw = localStorage.getItem(STORAGE.req);
     if (!raw) return 0;
     const { date, count } = JSON.parse(raw);
     return date === todayKey() ? count : 0;
@@ -38,14 +55,14 @@ function getRequestCount() {
 function incrementRequestCount(n = 1) {
   const count = getRequestCount() + n;
   try {
-    localStorage.setItem(REQ_COUNTER_KEY, JSON.stringify({ date: todayKey(), count }));
+    localStorage.setItem(STORAGE.req, JSON.stringify({ date: todayKey(), count }));
   } catch { /* almacenamiento no disponible */ }
   return count;
 }
 
 function cacheGet(key) {
   try {
-    const raw = localStorage.getItem(CACHE_PREFIX + key);
+    const raw = localStorage.getItem(STORAGE.cache + key);
     if (!raw) return null;
     const { ts, data } = JSON.parse(raw);
     if (Date.now() - ts > CONFIG.cacheTTL) return null;
@@ -57,7 +74,7 @@ function cacheGet(key) {
 
 function cacheSet(key, data) {
   try {
-    localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
+    localStorage.setItem(STORAGE.cache + key, JSON.stringify({ ts: Date.now(), data }));
     pruneCache();
   } catch { /* cuota llena */ }
 }
@@ -66,18 +83,77 @@ function pruneCache() {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (!k || !k.startsWith(CACHE_PREFIX)) continue;
+      if (!k || !k.startsWith(STORAGE.cache)) continue;
       const { ts } = JSON.parse(localStorage.getItem(k) || '{}');
       if (!ts || Date.now() - ts > CONFIG.cacheTTL) localStorage.removeItem(k);
     }
   } catch { /* ignorar */ }
 }
 
+function cleanupLegacyStorage() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(STORAGE.legacy)) localStorage.removeItem(k);
+    }
+  } catch { /* ignorar */ }
+}
+
+function getFavorites() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE.favs)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFavorites(favs) {
+  try {
+    localStorage.setItem(STORAGE.favs, JSON.stringify(favs));
+  } catch { /* cuota llena */ }
+}
+
+function isFavorite(url) {
+  return getFavorites().some(f => f.url === url);
+}
+
+function toggleFavorite(article) {
+  const favs = getFavorites();
+  const idx = favs.findIndex(f => f.url === article.url);
+  let added;
+  if (idx >= 0) {
+    favs.splice(idx, 1);
+    added = false;
+  } else {
+    favs.unshift({
+      url: article.url,
+      title: article.title,
+      description: article.description,
+      image: article.image,
+      source: article.source,
+      publishedAt: article.publishedAt,
+      _cat: article._cat,
+      _cid: article._cid,
+    });
+    if (favs.length > FAV_MAX) favs.length = FAV_MAX;
+    added = true;
+  }
+  saveFavorites(favs);
+  return added;
+}
+
+function categoryById(id) {
+  return CATEGORIES.find(c => c.id === id);
+}
+
 function init() {
+  cleanupLegacyStorage();
   cacheDom();
   bindEvents();
   syncNav();
   updateStats();
+  renderSidebarFavorites();
+  updateHeaderDate();
   updateClock();
   setInterval(updateClock, 1000);
   loadNews('technology');
@@ -102,7 +178,15 @@ function cacheDom() {
   DOM.sbTime = document.getElementById('sbTime');
   DOM.viewGrid = document.getElementById('viewGrid');
   DOM.viewList = document.getElementById('viewList');
-  DOM.sidebarItems = document.querySelectorAll('.sidebar-item[data-category]');
+  DOM.sidebarFavItem = document.querySelector('.sidebar-item[data-action="favorites-view"]');
+  DOM.favList = document.getElementById('favList');
+  DOM.favCount = document.getElementById('favCount');
+  DOM.favSideCount = document.getElementById('favSideCount');
+  DOM.favViewBtn = document.getElementById('favViewBtn');
+  DOM.ticker = document.getElementById('ticker');
+  DOM.tickerTrack = document.getElementById('tickerTrack');
+  DOM.headerDate = document.getElementById('headerDate');
+  DOM.toast = document.getElementById('toast');
 }
 
 function bindEvents() {
@@ -110,36 +194,23 @@ function bindEvents() {
     tab.addEventListener('click', () => setCategory(tab.dataset.category));
   });
 
-  DOM.sidebarItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const cat = item.dataset.category;
-      if (cat === 'current') {
-        DOM.searchInput.value = '';
-        if (STATE.category === 'all') loadAll();
-        else loadNews(STATE.category);
-      } else {
-        setCategory(cat);
-      }
-    });
+  DOM.sidebarFavItem.addEventListener('click', showFavorites);
+
+  DOM.favViewBtn.addEventListener('click', () => {
+    if (STATE.mode === 'favorites') loadNews(STATE.category);
+    else showFavorites();
   });
 
   DOM.refreshBtn.addEventListener('click', () => {
-    const q = DOM.searchInput.value.trim();
-    if (STATE.searchActive && q.length >= 2) {
-      searchNews(q, { force: true });
-    } else if (STATE.category === 'all') {
-      loadAll({ force: true });
-    } else {
-      loadNews(STATE.category, { force: true });
-    }
+    if (STATE.mode === 'favorites') showFavorites();
+    else loadNews(STATE.category, { force: true });
   });
 
   DOM.searchInput.addEventListener('input', debounce((e) => {
     const q = e.target.value.trim();
     if (q.length < 2) {
       if (searchAbortController) searchAbortController.abort();
-      if (STATE.category === 'all') loadAll();
-      else loadNews(STATE.category);
+      loadNews(STATE.category);
       return;
     }
     searchNews(q);
@@ -154,6 +225,7 @@ function bindEvents() {
     DOM.viewList.classList.remove('active');
     STATE.view = 'grid';
     DOM.newsGrid.classList.remove('list-view');
+    renderArticles(STATE.articles, emptyMessage());
   });
 
   DOM.viewList.addEventListener('click', () => {
@@ -161,35 +233,61 @@ function bindEvents() {
     DOM.viewGrid.classList.remove('active');
     STATE.view = 'list';
     DOM.newsGrid.classList.add('list-view');
+    renderArticles(STATE.articles, emptyMessage());
+  });
+
+  DOM.newsGrid.addEventListener('click', e => {
+    const favBtn = e.target.closest('.btn-fav');
+    if (favBtn) {
+      e.preventDefault();
+      handleFavClick(favBtn);
+      return;
+    }
+    const shareBtn = e.target.closest('.btn-share');
+    if (shareBtn) {
+      e.preventDefault();
+      const card = shareBtn.closest('.news-card');
+      const article = STATE.articles[Number(card?.dataset.index)];
+      if (article) shareArticle(article);
+    }
   });
 }
 
 function setCategory(category) {
+  STATE.mode = 'feed';
   STATE.category = category;
   STATE.searchActive = false;
   DOM.searchInput.value = '';
   syncNav();
-  if (category === 'all') loadAll();
-  else loadNews(category);
+  loadNews(category);
 }
 
 function syncNav() {
-  const cat = STATE.category;
-  DOM.tabs.forEach(t => t.classList.toggle('active', t.dataset.category === cat));
-  DOM.sidebarItems.forEach(item => {
-    const dc = item.dataset.category;
-    const active = dc === 'current' ? cat !== 'science' && cat !== 'technology' : dc === cat;
-    item.classList.toggle('active', active);
+  const feed = STATE.mode === 'feed';
+  DOM.tabs.forEach(t => {
+    t.classList.toggle('active', feed && t.dataset.category === STATE.category);
   });
+  DOM.sidebarFavItem.classList.toggle('active', !feed);
+  DOM.favViewBtn.classList.toggle('active', !feed);
 }
 
-function updateCategoryLabel(category) {
-  const labelMap = {
-    technology: 'Tecnología',
-    science: 'Ciencia',
-    all: 'Todas',
-  };
-  DOM.currentCategoryLabel.textContent = labelMap[category] || category;
+function updateCategoryLabel() {
+  if (STATE.mode === 'favorites') {
+    DOM.currentCategoryLabel.textContent = 'Favoritos';
+    return;
+  }
+  if (STATE.searchActive) {
+    DOM.currentCategoryLabel.textContent = 'Búsqueda';
+    return;
+  }
+  const cat = categoryById(STATE.category);
+  DOM.currentCategoryLabel.textContent = cat ? cat.label : STATE.category;
+}
+
+function emptyMessage() {
+  return STATE.mode === 'favorites'
+    ? 'Aún no guardas artículos. Toca la estrella en cualquier nota.'
+    : 'No se encontraron artículos';
 }
 
 function setApiStatus(online) {
@@ -216,8 +314,12 @@ function showApiError(err) {
 function showApiSuccess(articles, cacheStatus) {
   STATE.articles = articles;
   STATE.cacheStatus = cacheStatus;
-  if (cacheStatus !== 'Local') setApiStatus(true);
-  renderArticles(articles);
+  if (cacheStatus === 'Local') {
+    DOM.sbConnection.innerHTML = '<i class="fas fa-database"></i> Caché local';
+  } else {
+    setApiStatus(true);
+  }
+  renderArticles(articles, emptyMessage());
   updateStats();
 }
 
@@ -229,10 +331,16 @@ function abortNav() {
   return navAbortController.signal;
 }
 
+function labelArticles(articles, category) {
+  const cat = categoryById(category);
+  return articles.map(a => ({ ...a, _cat: cat?.label, _cid: cat?.id }));
+}
+
 function loadNews(category, { force = false } = {}) {
+  STATE.mode = 'feed';
   STATE.category = category;
   STATE.searchActive = false;
-  updateCategoryLabel(category);
+  updateCategoryLabel();
   syncNav();
   hideError();
 
@@ -242,6 +350,7 @@ function loadNews(category, { force = false } = {}) {
     if (cached) {
       abortNav();
       showApiSuccess(cached, 'Local');
+      renderTicker(cached);
       return;
     }
   }
@@ -250,7 +359,7 @@ function loadNews(category, { force = false } = {}) {
   showSkeleton();
 
   const params = new URLSearchParams({
-    topic: category,
+    category,
     lang: CONFIG.lang,
     country: CONFIG.country,
     max: CONFIG.maxResults,
@@ -266,9 +375,10 @@ function loadNews(category, { force = false } = {}) {
     })
     .then(data => {
       if (data.errors) throw new Error(data.errors[0]?.message || 'Error de API');
-      const articles = data.articles || [];
+      const articles = labelArticles(data.articles || [], category);
       cacheSet(cacheKey, articles);
       showApiSuccess(articles, 'Activa');
+      renderTicker(articles);
     })
     .catch(err => {
       if (err.name === 'AbortError') return;
@@ -276,75 +386,13 @@ function loadNews(category, { force = false } = {}) {
     });
 }
 
-function loadAll({ force = false } = {}) {
-  STATE.category = 'all';
-  STATE.searchActive = false;
-  updateCategoryLabel('all');
-  syncNav();
-  hideError();
-
-  const cacheKey = `all:${CONFIG.lang}:${CONFIG.country}`;
-  if (!force) {
-    const cached = cacheGet(cacheKey);
-    if (cached) {
-      abortNav();
-      showApiSuccess(cached, 'Local');
-      return;
-    }
-  }
-
-  const signal = abortNav();
-  showSkeleton();
-
-  const topics = ['technology', 'science'];
-  incrementRequestCount(2);
-  updateStats();
-
-  const promises = topics.map(topic => {
-    const params = new URLSearchParams({
-      topic,
-      lang: CONFIG.lang,
-      country: CONFIG.country,
-      max: 6,
-    });
-    return fetch(`${CONFIG.apiUrl}/top-headlines?${params}`, { signal })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-        return r.json();
-      })
-      .then(data => {
-        if (data.errors) throw new Error(data.errors[0]?.message || 'Error de API');
-        return data.articles || [];
-      });
-  });
-
-  Promise.allSettled(promises)
-    .then(([techRes, sciRes]) => {
-      const rejected = [techRes, sciRes].filter(r => r.status === 'rejected');
-      if (rejected.some(r => r.reason?.name === 'AbortError')) return;
-      if (rejected.length === 2) throw rejected[0].reason;
-
-      const techArts = techRes.status === 'fulfilled'
-        ? techRes.value.map(a => ({ ...a, _cat: 'Tecnología' }))
-        : [];
-      const sciArts = sciRes.status === 'fulfilled'
-        ? sciRes.value.map(a => ({ ...a, _cat: 'Ciencia' }))
-        : [];
-
-      const articles = interleave(techArts, sciArts);
-      cacheSet(cacheKey, articles);
-      showApiSuccess(articles, rejected.length ? 'Parcial' : 'Activa');
-    })
-    .catch(err => {
-      if (err?.name === 'AbortError') return;
-      showApiError(err);
-    });
-}
-
 let searchAbortController = null;
 
 function searchNews(query, { force = false } = {}) {
+  STATE.mode = 'feed';
   STATE.searchActive = true;
+  updateCategoryLabel();
+  syncNav();
   hideError();
 
   const cacheKey = `search:${query}:${CONFIG.lang}:${CONFIG.country}`;
@@ -388,50 +436,191 @@ function searchNews(query, { force = false } = {}) {
     });
 }
 
-function renderArticles(articles) {
+function showFavorites() {
+  if (searchAbortController) searchAbortController.abort();
+  STATE.mode = 'favorites';
+  STATE.searchActive = false;
+  DOM.searchInput.value = '';
+  STATE.articles = getFavorites();
+  updateCategoryLabel();
+  syncNav();
+  hideError();
+  showApiSuccess(STATE.articles, 'Local');
+}
+
+function handleFavClick(btn) {
+  const card = btn.closest('.news-card');
+  const article = STATE.articles[Number(card?.dataset.index)];
+  if (!article) return;
+
+  const added = toggleFavorite(article);
+  card.querySelectorAll('.btn-fav').forEach(b => {
+    b.classList.toggle('active', added);
+    b.title = added ? 'Quitar de guardados' : 'Guardar';
+  });
+
+  renderSidebarFavorites();
+
+  if (STATE.mode === 'favorites' && !added) {
+    STATE.articles = getFavorites();
+    renderArticles(STATE.articles, emptyMessage());
+  }
+}
+
+async function shareArticle(article) {
+  const url = article.url;
+  const title = article.title || 'InfoNewsNow';
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Enlace copiado ✓');
+  } catch {
+    showToast('No se pudo copiar el enlace');
+  }
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  DOM.toast.textContent = msg;
+  DOM.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2400);
+}
+
+function renderTicker(articles) {
+  const items = (articles || []).filter(a => a.title && a.url).slice(0, 10);
+  if (!items.length) {
+    DOM.ticker.style.display = 'none';
+    return;
+  }
+  DOM.ticker.style.display = '';
+  const inner = items.map(a => `
+    <a class="ticker-item" href="${escapeHtml(a.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.title)}</a>
+    <span class="ticker-sep">◆</span>`).join('');
+  DOM.tickerTrack.innerHTML = `<div class="ticker-move">${inner}${inner}</div>`;
+}
+
+function renderSidebarFavorites() {
+  const favs = getFavorites();
+  DOM.favCount.textContent = favs.length;
+  DOM.favSideCount.textContent = favs.length;
+
+  if (!favs.length) {
+    DOM.favList.innerHTML = '<div class="fav-empty">Sin artículos guardados</div>';
+    return;
+  }
+  DOM.favList.innerHTML = favs.slice(0, 6).map(f => `
+    <a class="fav-list-item" href="${escapeHtml(f.url || '#')}" target="_blank" rel="noopener noreferrer">
+      <i class="far fa-newspaper"></i>
+      <span>${escapeHtml(f.title || 'Sin título')}</span>
+    </a>`).join('');
+}
+
+const IMG_FALLBACK = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2321262d%22 width=%22340%22 height=%22180%22/><text fill=%22%236e7681%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22monospace%22>No Image</text></svg>';
+
+function renderCard(article, index, isHero) {
+  const a = article;
+  const title = a.title || 'Sin título';
+  const desc = a.description || 'Sin descripción disponible';
+  const image = a.image || '';
+  const source = a.source?.name || a.source?.title || 'Fuente desconocida';
+  const date = a.publishedAt ? formatDate(a.publishedAt) : '';
+  const url = a.url || '#';
+
+  const cid = a._cid || (STATE.mode === 'feed' && !STATE.searchActive ? STATE.category : null);
+  const cat = cid ? categoryById(cid) : null;
+  const fav = isFavorite(url);
+  const delay = Math.min(index, 8) * 0.04;
+
+  const favBtn = `
+    <button class="card-iconbtn btn-fav${fav ? ' active' : ''}" type="button"
+            title="${fav ? 'Quitar de guardados' : 'Guardar'}" aria-label="Guardar artículo">
+      <i class="fas fa-star"></i>
+    </button>`;
+
+  if (isHero) {
+    return `
+      <article class="news-card news-hero" data-index="${index}" style="animation-delay:${delay}s">
+        <div class="news-card-media">
+          <img class="news-card-image" src="${escapeHtml(image)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
+          <div class="hero-overlay"></div>
+          ${cat ? `<span class="cat-badge" style="--cat:${cat.color}">${escapeHtml(cat.label)}</span>` : ''}
+          <div class="hero-content">
+            <span class="hero-label"><i class="fas fa-bolt"></i> DESTACADO</span>
+            <h2 class="hero-title">${escapeHtml(title)}</h2>
+            <p class="hero-desc">${escapeHtml(desc)}</p>
+            <div class="hero-meta"><span class="source-dot"></span>${escapeHtml(source)} <span class="hm-sep">·</span> <i class="far fa-clock"></i> ${date}</div>
+          </div>
+          ${favBtn}
+        </div>
+        <div class="news-card-body hero-body">
+          <div class="news-card-footer">
+            <span class="news-card-date"><i class="far fa-newspaper"></i> ${escapeHtml(source)}</span>
+            <div class="news-card-actions">
+              <button class="card-iconbtn btn-share" type="button" title="Compartir" aria-label="Compartir"><i class="fas fa-share-alt"></i></button>
+              <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir <i class="fas fa-external-link-alt"></i></a>
+            </div>
+          </div>
+        </div>
+        <a class="card-overlay" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(title)}"></a>
+      </article>`;
+  }
+
+  return `
+    <article class="news-card" data-index="${index}" style="animation-delay:${delay}s">
+      <div class="news-card-media">
+        <img class="news-card-image" src="${escapeHtml(image)}" alt="${escapeHtml(title)}" loading="lazy" onerror="this.src='${IMG_FALLBACK}'">
+        ${cat ? `<span class="cat-badge" style="--cat:${cat.color}">${escapeHtml(cat.label)}</span>` : ''}
+        ${favBtn}
+      </div>
+      <div class="news-card-body">
+        <div class="news-card-source">
+          <span class="source-dot"></span>
+          ${cat ? `<span style="color:var(--accent-orange)">${escapeHtml(cat.label)}</span> · ` : ''}
+          ${escapeHtml(source)}
+        </div>
+        <h2 class="news-card-title">${escapeHtml(title)}</h2>
+        <p class="news-card-desc">${escapeHtml(desc)}</p>
+        <div class="news-card-footer">
+          <span class="news-card-date"><i class="far fa-clock"></i> ${date}</span>
+          <div class="news-card-actions">
+            <button class="card-iconbtn btn-share" type="button" title="Compartir" aria-label="Compartir"><i class="fas fa-share-alt"></i></button>
+            <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir <i class="fas fa-external-link-alt"></i></a>
+          </div>
+        </div>
+      </div>
+      <a class="card-overlay" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(title)}"></a>
+    </article>`;
+}
+
+function renderArticles(articles, emptyMsg) {
   hideSkeleton();
 
   if (!articles || articles.length === 0) {
     DOM.newsGrid.innerHTML = `
       <div class="no-results">
-        <div class="no-results-icon"><i class="fas fa-search"></i></div>
-        <div class="no-results-text">No se encontraron artículos</div>
+        <div class="no-results-icon"><i class="fas fa-${STATE.mode === 'favorites' ? 'bookmark' : 'search'}"></i></div>
+        <div class="no-results-text">${emptyMsg || 'No se encontraron artículos'}</div>
       </div>`;
-    DOM.resultCount.textContent = '0 artículos';
+    DOM.resultCount.textContent = STATE.mode === 'favorites' ? '0 guardados' : '0 artículos';
     DOM.articleCount.textContent = '0';
     return;
   }
 
-  DOM.newsGrid.innerHTML = articles.map((a, i) => {
-    const title = a.title || 'Sin título';
-    const desc = a.description || 'Sin descripción disponible';
-    const image = a.image || '';
-    const source = a.source?.name || a.source?.title || 'Fuente desconocida';
-    const date = a.publishedAt ? formatDate(a.publishedAt) : '';
-    const url = a.url || '#';
-    const category = a._cat || '';
+  const withHero = STATE.view === 'grid';
+  DOM.newsGrid.innerHTML = articles
+    .map((a, i) => renderCard(a, i, withHero && i === 0))
+    .join('');
 
-    return `
-      <a class="news-card" style="animation-delay:${i * 0.04}s" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
-        <img class="news-card-image" src="${escapeHtml(image)}" alt="${escapeHtml(title)}" loading="lazy"
-             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2321262d%22 width=%22340%22 height=%22180%22/><text fill=%22%236e7681%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22monospace%22>No Image</text></svg>'">
-        <div class="news-card-body">
-          <div class="news-card-source">
-            <span class="source-dot"></span>
-            ${category ? `<span style="color:var(--accent-orange)">${category}</span> · ` : ''}
-            ${escapeHtml(source)}
-          </div>
-          <h2 class="news-card-title">${escapeHtml(title)}</h2>
-          <p class="news-card-desc">${escapeHtml(desc)}</p>
-          <div class="news-card-footer">
-            <span class="news-card-date"><i class="far fa-clock"></i> ${date}</span>
-            <span class="news-card-open"><i class="fas fa-external-link-alt"></i> Abrir →</span>
-          </div>
-        </div>
-      </a>`;
-  }).join('');
-
-  DOM.resultCount.textContent = `${articles.length} artículos`;
+  const suffix = STATE.mode === 'favorites' ? ' guardados' : ' artículos';
+  DOM.resultCount.textContent = `${articles.length}${suffix}`;
   DOM.articleCount.textContent = `${articles.length}`;
 }
 
@@ -456,6 +645,15 @@ function hideError() {
 function updateStats() {
   DOM.requestCount.textContent = `${getRequestCount()}/100 hoy`;
   DOM.cacheStatus.textContent = STATE.cacheStatus;
+}
+
+function updateHeaderDate() {
+  DOM.headerDate.textContent = new Date().toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 function updateClock() {

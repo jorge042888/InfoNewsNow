@@ -7,14 +7,14 @@ const CONFIG = {
 };
 
 const CATEGORIES = [
-  { id: 'technology', label: 'Tecnología', color: '#58a6ff' },
-  { id: 'science', label: 'Ciencia', color: '#bc8cff' },
-  { id: 'world', label: 'Mundo', color: '#f0883e' },
-  { id: 'business', label: 'Negocios', color: '#3fb950' },
-  { id: 'sports', label: 'Deportes', color: '#ff7b72' },
-  { id: 'entertainment', label: 'Entretenimiento', color: '#ffd666' },
-  { id: 'health', label: 'Salud', color: '#f778ba' },
-  { id: 'general', label: 'Todas', color: '#8b949e' },
+  { id: 'technology', label: 'Tecnología', color: '#7dd3fc' },
+  { id: 'science', label: 'Ciencia', color: '#a5b4fc' },
+  { id: 'world', label: 'Mundo', color: '#fdba74' },
+  { id: 'business', label: 'Negocios', color: '#86efac' },
+  { id: 'sports', label: 'Deportes', color: '#fca5a5' },
+  { id: 'entertainment', label: 'Entretenimiento', color: '#fde047' },
+  { id: 'health', label: 'Salud', color: '#f9a8d4' },
+  { id: 'general', label: 'Todas', color: '#e4e4e7' },
 ];
 
 const STATE = {
@@ -503,7 +503,7 @@ function renderTicker(articles) {
   DOM.ticker.style.display = '';
   const inner = items.map(a => `
     <a class="ticker-item" href="${escapeHtml(a.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.title)}</a>
-    <span class="ticker-sep">◆</span>`).join('');
+    <span class="ticker-sep">·</span>`).join('');
   DOM.tickerTrack.innerHTML = `<div class="ticker-move">${inner}${inner}</div>`;
 }
 
@@ -523,7 +523,7 @@ function renderSidebarFavorites() {
     </a>`).join('');
 }
 
-const IMG_FALLBACK = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2321262d%22 width=%22340%22 height=%22180%22/><text fill=%22%236e7681%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22monospace%22>No Image</text></svg>';
+const IMG_FALLBACK = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2318181c%22 width=%22340%22 height=%22180%22/><text fill=%22%236e6e78%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2213%22>Sin imagen</text></svg>';
 
 function renderCard(article, index, isHero) {
   const a = article;
@@ -553,10 +553,14 @@ function renderCard(article, index, isHero) {
           <div class="hero-overlay"></div>
           ${cat ? `<span class="cat-badge" style="--cat:${cat.color}">${escapeHtml(cat.label)}</span>` : ''}
           <div class="hero-content">
-            <span class="hero-label"><i class="fas fa-bolt"></i> DESTACADO</span>
+            <span class="hero-label">Destacado</span>
             <h2 class="hero-title">${escapeHtml(title)}</h2>
             <p class="hero-desc">${escapeHtml(desc)}</p>
-            <div class="hero-meta"><span class="source-dot"></span>${escapeHtml(source)} <span class="hm-sep">·</span> <i class="far fa-clock"></i> ${date}</div>
+            <div class="hero-meta">
+              <span class="hero-source">${escapeHtml(source)}</span>
+              <span class="hm-sep">·</span>
+              <span class="hero-time">${date}</span>
+            </div>
           </div>
           ${favBtn}
         </div>
@@ -565,7 +569,7 @@ function renderCard(article, index, isHero) {
             <span class="news-card-date"><i class="far fa-newspaper"></i> ${escapeHtml(source)}</span>
             <div class="news-card-actions">
               <button class="card-iconbtn btn-share" type="button" title="Compartir" aria-label="Compartir"><i class="fas fa-share-alt"></i></button>
-              <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir <i class="fas fa-external-link-alt"></i></a>
+              <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir artículo <i class="fas fa-arrow-right"></i></a>
             </div>
           </div>
         </div>
@@ -582,9 +586,8 @@ function renderCard(article, index, isHero) {
       </div>
       <div class="news-card-body">
         <div class="news-card-source">
-          <span class="source-dot"></span>
-          ${cat ? `<span style="color:var(--accent-orange)">${escapeHtml(cat.label)}</span> · ` : ''}
-          ${escapeHtml(source)}
+          ${cat ? `<span class="src-cat" style="--cat:${cat.color}">${escapeHtml(cat.label)}</span>` : ''}
+          <span class="src-name">${escapeHtml(source)}</span>
         </div>
         <h2 class="news-card-title">${escapeHtml(title)}</h2>
         <p class="news-card-desc">${escapeHtml(desc)}</p>
@@ -592,7 +595,7 @@ function renderCard(article, index, isHero) {
           <span class="news-card-date"><i class="far fa-clock"></i> ${date}</span>
           <div class="news-card-actions">
             <button class="card-iconbtn btn-share" type="button" title="Compartir" aria-label="Compartir"><i class="fas fa-share-alt"></i></button>
-            <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir <i class="fas fa-external-link-alt"></i></a>
+            <a class="news-card-open" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir <i class="fas fa-arrow-right"></i></a>
           </div>
         </div>
       </div>

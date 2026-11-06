@@ -6,7 +6,7 @@
   <title>InfoNewsNow — Noticias de Ciencia y Tecnología</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -22,8 +22,8 @@
       </div>
 
       <div class="search-box">
-        <span class="search-prompt">$</span>
-        <input type="text" id="searchInput" placeholder="grep --filter &quot;tema&quot;" autocomplete="off">
+        <i class="fas fa-search search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Buscar noticias, temas, fuentes..." autocomplete="off">
       </div>
 
       <div class="header-spacer"></div>
@@ -77,7 +77,7 @@
 
     <!-- Ticker -->
     <div class="ticker" id="ticker">
-      <span class="ticker-label"><i class="fas fa-bolt"></i> ÚLTIMAS</span>
+      <span class="ticker-label"><span class="live-dot"></span> Últimas</span>
       <div class="ticker-track" id="tickerTrack"></div>
     </div>
 
@@ -85,7 +85,7 @@
 
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
-        <div class="section-header">FAVORITOS <span class="section-count" id="favSideCount">0</span></div>
+        <div class="section-header">Favoritos <span class="section-count" id="favSideCount">0</span></div>
         <div class="sidebar-item" data-action="favorites-view">
           <span class="si-icon"><i class="fas fa-bookmark"></i></span>
           ver guardados
@@ -94,7 +94,7 @@
           <div class="fav-empty">Sin artículos guardados</div>
         </div>
 
-        <div class="section-header" style="margin-top: 24px;">ESTADO</div>
+        <div class="section-header" style="margin-top: 24px;">Estado</div>
         <div class="status-panel" id="statusPanel">
           <div class="stat-row">
             <span class="stat-label">Solicitudes</span>
@@ -117,37 +117,38 @@
 
       <!-- Content -->
       <main class="content">
-        <div class="content-header">
-          <div class="breadcrumb">
-            <span class="bc-active" id="currentCategoryLabel">Tecnología</span>
-            <span class="bc-sep">/</span>
-            <span class="bc-result-count" id="resultCount">0 artículos</span>
+        <div class="content-inner">
+          <div class="content-header">
+            <div class="page-heading">
+              <h1 class="page-title" id="currentCategoryLabel">Tecnología</h1>
+              <span class="page-count" id="resultCount">0 artículos</span>
+            </div>
+            <div class="view-controls">
+              <button class="view-btn active" id="viewGrid" title="Cuadrícula" aria-label="Vista de cuadrícula"><i class="fas fa-th"></i></button>
+              <button class="view-btn" id="viewList" title="Lista" aria-label="Vista de lista"><i class="fas fa-list"></i></button>
+            </div>
           </div>
-          <div class="view-controls">
-            <button class="view-btn active" id="viewGrid" title="Grid"><i class="fas fa-th"></i></button>
-            <button class="view-btn" id="viewList" title="Lista"><i class="fas fa-list"></i></button>
+
+          <!-- Loading Skeleton -->
+          <div class="skeleton-grid" id="skeletonGrid">
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
+            <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
           </div>
-        </div>
 
-        <!-- Loading Skeleton -->
-        <div class="skeleton-grid" id="skeletonGrid">
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-          <div class="skeleton-card"><div class="sk-img"></div><div class="sk-line w-80"></div><div class="sk-line w-60"></div><div class="sk-line w-40"></div></div>
-        </div>
+          <!-- Error Banner -->
+          <div class="error-banner" id="errorBanner" style="display:none">
+            <span class="error-icon"><i class="fas fa-exclamation-triangle"></i></span>
+            <span id="errorMessage">Error al cargar noticias</span>
+            <button class="error-close" id="errorClose">&times;</button>
+          </div>
 
-        <!-- Error Banner -->
-        <div class="error-banner" id="errorBanner" style="display:none">
-          <span class="error-icon"><i class="fas fa-exclamation-triangle"></i></span>
-          <span id="errorMessage">Error al cargar noticias</span>
-          <button class="error-close" id="errorClose">&times;</button>
+          <!-- News Grid -->
+          <div class="news-grid" id="newsGrid"></div>
         </div>
-
-        <!-- News Grid -->
-        <div class="news-grid" id="newsGrid"></div>
       </main>
 
     </div>
@@ -155,13 +156,11 @@
     <!-- Status Bar -->
     <footer class="status-bar">
       <div class="sb-left">
-        <span class="sb-item"><i class="fas fa-code"></i> InfoNewsNow</span>
+        <span class="sb-item sb-brand">InfoNewsNow</span>
         <span class="sb-item" id="sbConnection"><i class="fas fa-circle-notch fa-spin"></i> Conectando...</span>
       </div>
       <div class="sb-right">
         <span class="sb-item" id="sbTime"><i class="far fa-clock"></i> --:--</span>
-        <span class="sb-item">UTF-8</span>
-        <span class="sb-item"><i class="fab fa-js"></i></span>
       </div>
     </footer>
 

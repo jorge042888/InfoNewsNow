@@ -187,6 +187,22 @@ function cacheDom() {
   DOM.tickerTrack = document.getElementById('tickerTrack');
   DOM.headerDate = document.getElementById('headerDate');
   DOM.toast = document.getElementById('toast');
+  DOM.readerModal = document.getElementById('readerModal');
+  DOM.readerClose = document.getElementById('readerClose');
+  DOM.readerShare = document.getElementById('readerShare');
+  DOM.readerOriginal = document.getElementById('readerOriginal');
+  DOM.readerSource = document.getElementById('readerSource');
+  DOM.readerDate = document.getElementById('readerDate');
+  DOM.readerLoading = document.getElementById('readerLoading');
+  DOM.readerArticle = document.getElementById('readerArticle');
+  DOM.readerFallback = document.getElementById('readerFallback');
+  DOM.readerHero = document.getElementById('readerHero');
+  DOM.readerTitle = document.getElementById('readerTitle');
+  DOM.readerByline = document.getElementById('readerByline');
+  DOM.readerBody = document.getElementById('readerBody');
+  DOM.readerFallbackReason = document.getElementById('readerFallbackReason');
+  DOM.readerFallbackDesc = document.getElementById('readerFallbackDesc');
+  DOM.readerFallbackLink = document.getElementById('readerFallbackLink');
 }
 
 function bindEvents() {
@@ -249,7 +265,24 @@ function bindEvents() {
       const card = shareBtn.closest('.news-card');
       const article = STATE.articles[Number(card?.dataset.index)];
       if (article) shareArticle(article);
+      return;
     }
+    const openLink = e.target.closest('.card-overlay, .news-card-open');
+    if (openLink) {
+      e.preventDefault();
+      const card = openLink.closest('.news-card');
+      const article = STATE.articles[Number(card?.dataset.index)];
+      if (article && article.url) openReader(article);
+    }
+  });
+
+  DOM.readerClose.addEventListener('click', closeReader);
+  DOM.readerModal.querySelector('[data-reader-close]').addEventListener('click', closeReader);
+  DOM.readerShare.addEventListener('click', () => {
+    if (readerState.article) shareArticle(readerState.article);
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !DOM.readerModal.hidden) closeReader();
   });
 }
 
@@ -492,6 +525,134 @@ function showToast(msg) {
   DOM.toast.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2400);
+}
+
+const readerState = { article: null, controller: null, lastFocus: null };
+
+function formatFullDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('es-MX', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function readerSetMode(mode) {
+  DOM.readerLoading.hidden = mode !== 'loading';
+  DOM.readerArticle.hidden = mode !== 'article';
+  DOM.readerFallback.hidden = mode !== 'fallback';
+}
+
+function renderReaderByline({ author, published, updated }) {
+  const bits = [];
+  if (author) bits.push(`<span class="rb-author">Por ${escapeHtml(author)}</span>`);
+  const pub = formatFullDate(published);
+  if (pub) bits.push(`<span class="rb-item"><i class="far fa-calendar"></i> Publicado ${pub}</span>`);
+  const upd = formatFullDate(updated);
+  if (upd && upd !== pub) bits.push(`<span class="rb-item rb-updated"><i class="fas fa-sync-alt"></i> Actualizado ${upd}</span>`);
+  DOM.readerByline.innerHTML = bits.join('<span class="rb-sep">·</span>');
+}
+
+function bindReaderImages(root) {
+  root.querySelectorAll('img').forEach(img => {
+    img.addEventListener('error', () => {
+      img.remove();
+    }, { once: true });
+  });
+  if (root !== DOM.readerHero && DOM.readerHero.closest('#readerArticle')) {
+    DOM.readerHero.addEventListener('error', () => {
+      DOM.readerHero.hidden = true;
+    }, { once: true });
+  }
+}
+
+function openReader(article) {
+  if (!article || !article.url) return;
+  readerState.article = article;
+  readerState.lastFocus = document.activeElement;
+
+  const source = article.source?.name || article.source?.title || 'Fuente desconocida';
+  const published = article.publishedAt || '';
+  DOM.readerSource.textContent = source;
+  DOM.readerDate.textContent = formatFullDate(published) || (published ? formatDate(published) : '');
+  DOM.readerOriginal.href = article.url;
+  DOM.readerFallbackLink.href = article.url;
+
+  DOM.readerTitle.textContent = article.title || '';
+  renderReaderByline({ author: article.author || '', published, updated: '' });
+  if (article.image) {
+    DOM.readerHero.src = article.image;
+    DOM.readerHero.alt = article.title || '';
+    DOM.readerHero.hidden = false;
+  } else {
+    DOM.readerHero.hidden = true;
+    DOM.readerHero.removeAttribute('src');
+  }
+  DOM.readerBody.innerHTML = '';
+  DOM.readerFallbackDesc.textContent = article.description || '';
+  readerSetMode('loading');
+
+  DOM.readerModal.hidden = false;
+  document.body.classList.add('reader-open');
+  DOM.readerClose.focus();
+
+  if (readerState.controller) readerState.controller.abort();
+  readerState.controller = new AbortController();
+
+  fetch(`/api/reader?url=${encodeURIComponent(article.url)}`, { signal: readerState.controller.signal })
+    .then(r => r.json())
+    .then(data => {
+      if (readerState.article !== article) return;
+      if (data.ok && data.content) {
+        if (data.image) {
+          DOM.readerHero.src = data.image;
+          DOM.readerHero.alt = data.title || article.title || '';
+          DOM.readerHero.hidden = false;
+        }
+        if (data.title) DOM.readerTitle.textContent = data.title;
+        const publishedIso = data.date || published;
+        DOM.readerDate.textContent = formatFullDate(publishedIso) || DOM.readerDate.textContent;
+        renderReaderByline({
+          author: data.author || article.author || '',
+          published: publishedIso,
+          updated: data.modified || '',
+        });
+        DOM.readerBody.innerHTML = data.content;
+        bindReaderImages(DOM.readerBody);
+        readerSetMode('article');
+      } else {
+        showReaderFallback(data.reason || 'No se pudo extraer el contenido');
+      }
+    })
+    .catch(err => {
+      if (err.name === 'AbortError') return;
+      if (readerState.article !== article) return;
+      showReaderFallback('No se pudo cargar la página fuente');
+    });
+}
+
+function showReaderFallback(reason) {
+  DOM.readerFallbackReason.textContent = reason || 'Contenido no disponible';
+  readerSetMode('fallback');
+}
+
+function closeReader() {
+  if (DOM.readerModal.hidden) return;
+  if (readerState.controller) readerState.controller.abort();
+  readerState.controller = null;
+  readerState.article = null;
+  DOM.readerModal.hidden = true;
+  document.body.classList.remove('reader-open');
+  DOM.readerBody.innerHTML = '';
+  if (readerState.lastFocus && typeof readerState.lastFocus.focus === 'function') {
+    readerState.lastFocus.focus();
+  }
+  readerState.lastFocus = null;
 }
 
 const CATEGORY_ICONS = {

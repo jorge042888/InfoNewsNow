@@ -164,6 +164,46 @@
       </div>
     </footer>
 
+    <!-- Reader modal -->
+    <div class="reader" id="readerModal" hidden>
+      <div class="reader-backdrop" data-reader-close></div>
+      <div class="reader-panel" role="dialog" aria-modal="true" aria-labelledby="readerTitle">
+        <header class="reader-bar">
+          <div class="reader-bar-meta">
+            <span class="reader-source" id="readerSource"></span>
+            <span class="reader-date" id="readerDate"></span>
+          </div>
+          <div class="reader-bar-actions">
+            <button class="reader-iconbtn" id="readerShare" type="button" title="Compartir" aria-label="Compartir"><i class="fas fa-share-alt"></i></button>
+            <a class="reader-original" id="readerOriginal" href="#" target="_blank" rel="noopener noreferrer">Ver original <i class="fas fa-external-link-alt"></i></a>
+            <button class="reader-iconbtn reader-close" id="readerClose" type="button" title="Cerrar" aria-label="Cerrar lector"><i class="fas fa-times"></i></button>
+          </div>
+        </header>
+        <div class="reader-scroll" id="readerScroll">
+          <div class="reader-loading" id="readerLoading">
+            <div class="reader-skel reader-skel-img"></div>
+            <div class="reader-skel reader-skel-title"></div>
+            <div class="reader-skel reader-skel-line"></div>
+            <div class="reader-skel reader-skel-line"></div>
+            <div class="reader-skel reader-skel-line short"></div>
+            <p class="reader-loading-text"><i class="fas fa-circle-notch fa-spin"></i> Obteniendo el artículo…</p>
+          </div>
+          <article class="reader-article" id="readerArticle" hidden>
+            <img class="reader-hero" id="readerHero" alt="" hidden>
+            <h1 class="reader-title" id="readerTitle"></h1>
+            <div class="reader-byline" id="readerByline"></div>
+            <div class="reader-body" id="readerBody"></div>
+          </article>
+          <div class="reader-fallback" id="readerFallback" hidden>
+            <div class="reader-fallback-icon"><i class="fas fa-newspaper"></i></div>
+            <p class="reader-fallback-reason" id="readerFallbackReason"></p>
+            <p class="reader-fallback-desc" id="readerFallbackDesc"></p>
+            <a class="reader-fallback-cta" id="readerFallbackLink" href="#" target="_blank" rel="noopener noreferrer">Abrir en pestaña original <i class="fas fa-arrow-right"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
 

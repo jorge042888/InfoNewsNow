@@ -494,6 +494,17 @@ function showToast(msg) {
   toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2400);
 }
 
+const CATEGORY_ICONS = {
+  technology: 'fa-microchip',
+  science: 'fa-flask',
+  world: 'fa-globe',
+  business: 'fa-chart-line',
+  sports: 'fa-futbol',
+  entertainment: 'fa-film',
+  health: 'fa-heartbeat',
+  general: 'fa-newspaper',
+};
+
 function renderTicker(articles) {
   const items = (articles || []).filter(a => a.title && a.url).slice(0, 10);
   if (!items.length) {
@@ -501,9 +512,12 @@ function renderTicker(articles) {
     return;
   }
   DOM.ticker.style.display = '';
-  const inner = items.map(a => `
-    <a class="ticker-item" href="${escapeHtml(a.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(a.title)}</a>
-    <span class="ticker-sep">·</span>`).join('');
+  const inner = items.map(a => {
+    const icon = CATEGORY_ICONS[a._cid] || 'fa-newspaper';
+    return `
+    <a class="ticker-item" href="${escapeHtml(a.url)}" target="_blank" rel="noopener noreferrer"><i class="fas ${icon} ticker-icon" aria-hidden="true"></i><span class="ticker-title">${escapeHtml(a.title)}</span></a>
+    <span class="ticker-sep">·</span>`;
+  }).join('');
   DOM.tickerTrack.innerHTML = `<div class="ticker-move">${inner}${inner}</div>`;
 }
 

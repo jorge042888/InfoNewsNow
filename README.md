@@ -49,7 +49,7 @@ Abre **http://localhost:3000** en tu navegador.
 
 La API key de GNews se maneja **solo en el servidor** (nunca se expone al cliente):
 
-1. **Opción recomendada** — variable de entorno:
+Define la variable de entorno `GNEWS_API_KEY` (obligatoria; sin ella la API responde 500):
 
    ```powershell
    # PowerShell (Windows)
@@ -63,9 +63,7 @@ La API key de GNews se maneja **solo en el servidor** (nunca se expone al client
    npm start
    ```
 
-2. **Fallback incluido** — si no se define la variable, el servidor usa una key de desarrollo embebida en `lib/handlers.js`.
-
-> ⚠️ **Importante**: este repositorio es público. Si la key embebida sigue activa, **rotála** en [gnews.io](https://gnews.io) y usá la variable de entorno en producción.
+> El código no incluye ninguna key. Nunca subas la key al repositorio (es público).
 
 ## Límites de GNews (plan Free)
 
@@ -120,8 +118,8 @@ El navegador llama a rutas locales (`/api/v4/top-headlines`, `/api/v4/search`, `
 
 1. Importa el repositorio en [vercel.com](https://vercel.com) (framework detectado: **Other**, sin build).
 2. Las funciones de `api/` se enrutan automáticamente: `api/v4/top-headlines.js` → `/api/v4/top-headlines`, etc. El enrutado de rutas del cliente no cambia (`/api/v4` y `/api/reader` son las mismas URLs).
-3. Recomendado: define la variable de entorno `GNEWS_API_KEY` en *Project Settings → Environment Variables* (si no, se usa el fallback embebido).
-4. Cada push a `master` despliega automáticamente. `server.js`, `tests/` y `.claude/` se excluyen del deploy con `.vercelignore` (así `server.js` —que contiene la key de fallback— no queda expuesto como archivo estático).
+3. Recomendado: define la variable de entorno `GNEWS_API_KEY` en *Project Settings → Environment Variables* (obligatoria).
+4. Cada push a `master` despliega automáticamente. `server.js`, `tests/` y `.claude/` se excluyen del deploy con `.vercelignore` (así `server.js` no queda expuesto como archivo estático).
 
 > En el plan Hobby las funciones viven en una sola región (`iad1` por defecto) y la caché en memoria del lector es por instancia: tras un frío, la primera lectura de una URL tarda ~1 s más.
 

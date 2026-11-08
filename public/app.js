@@ -2,9 +2,15 @@ const CONFIG = {
   apiUrl: '/api/v4',
   maxResults: 10,
   lang: 'es',
-  country: 'mx',
+  country: 'co',
   cacheTTL: 10 * 60 * 1000,
 };
+
+// GNews no tiene categoría de gaming: se resuelve con búsqueda (en título y
+// descripción) a nivel global en español, sin filtro de país porque los medios
+// colombianos publican poco del tema y mezclan mucho ruido. Sin tildes: GNews
+// rechaza tildes en la consulta.
+const GAMING_QUERY = 'videojuegos OR videojuego OR gaming OR PlayStation OR Xbox OR Nintendo OR "Nintendo Switch" OR Steam OR GTA OR esports';
 
 const CATEGORIES = [
   { id: 'technology', label: 'Tecnología', color: '#7dd3fc' },
@@ -12,7 +18,7 @@ const CATEGORIES = [
   { id: 'world', label: 'Mundo', color: '#fdba74' },
   { id: 'business', label: 'Negocios', color: '#86efac' },
   { id: 'sports', label: 'Deportes', color: '#fca5a5' },
-  { id: 'entertainment', label: 'Entretenimiento', color: '#fde047' },
+  { id: 'gaming', label: 'Gaming', color: '#c4b5fd', search: GAMING_QUERY },
   { id: 'health', label: 'Salud', color: '#f9a8d4' },
   { id: 'general', label: 'Todas', color: '#e4e4e7' },
 ];
@@ -391,17 +397,17 @@ function loadNews(category, { force = false } = {}) {
   const signal = abortNav();
   showSkeleton();
 
-  const params = new URLSearchParams({
-    category,
-    lang: CONFIG.lang,
-    country: CONFIG.country,
-    max: CONFIG.maxResults,
-  });
+  const cat = categoryById(category);
+  // Categorías con `search` (gaming) usan /search global; el resto /top-headlines de Colombia.
+  const endpoint = cat?.search ? 'search' : 'top-headlines';
+  const params = cat?.search
+    ? new URLSearchParams({ q: cat.search, in: 'title,description', lang: CONFIG.lang, max: CONFIG.maxResults })
+    : new URLSearchParams({ category, lang: CONFIG.lang, country: CONFIG.country, max: CONFIG.maxResults });
 
   incrementRequestCount();
   updateStats();
 
-  fetch(`${CONFIG.apiUrl}/top-headlines?${params}`, { signal })
+  fetch(`${CONFIG.apiUrl}/${endpoint}?${params}`, { signal })
     .then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
       return r.json();
@@ -533,7 +539,7 @@ function formatFullDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('es-MX', {
+  return d.toLocaleString('es-CO', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -661,7 +667,7 @@ const CATEGORY_ICONS = {
   world: 'fa-globe',
   business: 'fa-chart-line',
   sports: 'fa-futbol',
-  entertainment: 'fa-film',
+  gaming: 'fa-gamepad',
   health: 'fa-heartbeat',
   general: 'fa-newspaper',
 };
@@ -826,7 +832,7 @@ function updateStats() {
 }
 
 function updateHeaderDate() {
-  DOM.headerDate.textContent = new Date().toLocaleDateString('es-MX', {
+  DOM.headerDate.textContent = new Date().toLocaleDateString('es-CO', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -836,7 +842,7 @@ function updateHeaderDate() {
 
 function updateClock() {
   const now = new Date();
-  DOM.sbTime.innerHTML = `<i class="far fa-clock"></i> ${now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`;
+  DOM.sbTime.innerHTML = `<i class="far fa-clock"></i> ${now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -30,7 +30,7 @@ function formatDate(iso) {
   if (mins < 60) return `${mins}m`;
   if (hrs < 24) return `${hrs}h`;
   if (days < 7) return `${days}d`;
-  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 }
 
 function debounce(fn, delay) {

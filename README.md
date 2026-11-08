@@ -6,7 +6,8 @@ Portal de noticias de **ciencia y tecnología** en español, con estética *edit
 
 - **Hero destacado** — la nota principal a todo el ancho con tipografía serif editorial.
 - **Ticker de últimas noticias** — franja animada con los últimos titulares (sin requests extra).
-- **8 categorías reales** — Tecnología, Ciencia, Mundo, Negocios, Deportes, Entretenimiento, Salud y Todas (parámetro `category=` de GNews).
+- **8 categorías** — Tecnología, Ciencia, Mundo, Negocios, Deportes, Gaming, Salud y Todas. Las noticias se piden con foco en **Colombia** (`country=co`). **Gaming** no existe en GNews: se resuelve con una búsqueda global en español (título y descripción) porque los medios colombianos publican poco del tema. Entretenimiento se retiró: en Colombia era casi todo farándula.
+- **Solo noticias que merecen la pena** — `lib/quality.js` descarta en el servidor loterías, horóscopos, farándula, chismes, influencers, contenido patrocinado y fuentes tabloides (listas editables `BLOCKED_SOURCES` y `BLOCKED_TOPICS`). Como consecuencia, algunas categorías devuelven pocas notas.
 - **Favoritos / leer después** — estrella por artículo, panel en el sidebar y vista propia (máx. 50, persistente en `localStorage`).
 - **Compartir artículos** — Web Share API o copiar enlace al portapapeles con toast de confirmación.
 - **Buscador** — debounce de 400 ms con cancelación de peticiones obsoletas.
@@ -80,7 +81,7 @@ La app mitiga estos límites con caché local de 10 minutos, una sola request po
 | Comando | Descripción |
 |---------|-------------|
 | `npm start` | Levanta el servidor en `http://localhost:3000` |
-| `npm test` | Ejecuta la suite con `node --test` (36 tests) |
+| `npm test` | Ejecuta la suite con `node --test` (40 tests) |
 
 ## Estructura de archivos
 
@@ -93,6 +94,7 @@ technews-landing/
 │   └── utils.js        #   Utilidades puras (escapeHtml, formatDate, debounce…)
 ├── reader.js           # Extractor de contenido de la fuente (JSON-LD, sanitizado, limpieza)
 ├── lib/handlers.js     # Lógica compartida de API (proxy GNews + filtrado + lector + charset)
+├── lib/quality.js      # Filtro editorial (farándula, loterías, patrocinado, fuentes tabloides)
 ├── api/                # Funciones de Vercel (deploy en producción)
 │   ├── reader.js       #   GET /api/reader?url=
 │   └── v4/
@@ -103,7 +105,7 @@ technews-landing/
 ├── vercel.json         # Sin framework, salida en public/, maxDuration 30 s en api/v4
 ├── .vercelignore       # Excluye server.js y tests del deploy
 ├── .gitignore
-└── tests/              # node --test (utils, reader, api)
+└── tests/              # node --test (utils, reader, api, quality)
 ```
 
 ## Cómo funciona el proxy
@@ -112,7 +114,7 @@ El navegador llama a rutas locales (`/api/v4/top-headlines`, `/api/v4/search`, `
 
 1. Valida método (solo GET) y whitelist de endpoints (`top-headlines`, `search`).
 2. Inyecta la API key como parámetro `apikey` (nunca llega al cliente).
-3. Hace el fetch a `https://gnews.io/api/v4/...` con timeout de 10 s y filtra los artículos que el lector no puede mostrar (deadline de 8 s; las notas verificadas quedan en la caché del lector).
+3. Hace el fetch a `https://gnews.io/api/v4/...` con timeout de 10 s, descarta las notas superfluas (`lib/quality.js`) y filtra las que el lector no puede mostrar (deadline de 8 s; las notas verificadas quedan en la caché del lector).
 4. `/api/reader` descarga la página fuente (UA de navegador, gzip/br, charset detectado por header/`<meta>`, redirects validados, cap de 2 MB), extrae el contenido con `reader.js` y lo devuelve en JSON con caché en memoria de 15 min.
 
 ## Cómo funciona el lector

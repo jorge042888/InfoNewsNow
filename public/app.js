@@ -2,7 +2,7 @@ const CONFIG = {
   apiUrl: '/api/v4',
   maxResults: 10,
   lang: 'es',
-  country: 'co',
+  country: 'co', // solo se aplica a las categorías con `country` (Colombia)
   cacheTTL: 10 * 60 * 1000,
 };
 
@@ -15,6 +15,8 @@ const GAMING_QUERY = 'videojuegos OR videojuego OR gaming OR PlayStation OR Xbox
 const CATEGORIES = [
   { id: 'technology', label: 'Tecnología', color: '#7dd3fc' },
   { id: 'science', label: 'Ciencia', color: '#a5b4fc' },
+  // Sección local: noticias generales publicadas por medios colombianos.
+  { id: 'colombia', label: 'Colombia', color: '#fcd34d', apiCategory: 'general', country: CONFIG.country },
   { id: 'world', label: 'Mundo', color: '#fdba74' },
   { id: 'business', label: 'Negocios', color: '#86efac' },
   { id: 'sports', label: 'Deportes', color: '#fca5a5' },
@@ -370,6 +372,12 @@ function abortNav() {
   return navAbortController.signal;
 }
 
+// GNews devuelve errors como [{ message }] o como ["texto"] (p. ej. cuota agotada).
+function apiErrorMessage(errors, fallback) {
+  const first = Array.isArray(errors) ? errors[0] : errors;
+  return (typeof first === 'string' ? first : first?.message) || fallback;
+}
+
 function labelArticles(articles, category) {
   const cat = categoryById(category);
   return articles.map(a => ({ ...a, _cat: cat?.label, _cid: cat?.id }));
@@ -383,7 +391,7 @@ function loadNews(category, { force = false } = {}) {
   syncNav();
   hideError();
 
-  const cacheKey = `cat:${category}:${CONFIG.lang}:${CONFIG.country}`;
+  const cacheKey = `cat:${category}:${CONFIG.lang}`;
   if (!force) {
     const cached = cacheGet(cacheKey);
     if (cached) {
@@ -398,11 +406,17 @@ function loadNews(category, { force = false } = {}) {
   showSkeleton();
 
   const cat = categoryById(category);
-  // Categorías con `search` (gaming) usan /search global; el resto /top-headlines de Colombia.
+  // Todo es global en español salvo la sección Colombia (`country`).
+  // Las categorías con `search` (gaming) usan /search; el resto /top-headlines.
   const endpoint = cat?.search ? 'search' : 'top-headlines';
-  const params = cat?.search
-    ? new URLSearchParams({ q: cat.search, in: 'title,description', lang: CONFIG.lang, max: CONFIG.maxResults })
-    : new URLSearchParams({ category, lang: CONFIG.lang, country: CONFIG.country, max: CONFIG.maxResults });
+  const params = new URLSearchParams({ lang: CONFIG.lang, max: CONFIG.maxResults });
+  if (cat?.search) {
+    params.set('q', cat.search);
+    params.set('in', 'title,description');
+  } else {
+    params.set('category', cat?.apiCategory || category);
+    if (cat?.country) params.set('country', cat.country);
+  }
 
   incrementRequestCount();
   updateStats();
@@ -413,7 +427,7 @@ function loadNews(category, { force = false } = {}) {
       return r.json();
     })
     .then(data => {
-      if (data.errors) throw new Error(data.errors[0]?.message || 'Error de API');
+      if (data.errors) throw new Error(apiErrorMessage(data.errors, 'Error de API'));
       const articles = labelArticles(data.articles || [], category);
       cacheSet(cacheKey, articles);
       showApiSuccess(articles, 'Activa');
@@ -434,7 +448,7 @@ function searchNews(query, { force = false } = {}) {
   syncNav();
   hideError();
 
-  const cacheKey = `search:${query}:${CONFIG.lang}:${CONFIG.country}`;
+  const cacheKey = `search:${query}:${CONFIG.lang}`;
   if (!force) {
     const cached = cacheGet(cacheKey);
     if (cached) {
@@ -451,7 +465,6 @@ function searchNews(query, { force = false } = {}) {
   const params = new URLSearchParams({
     q: query,
     lang: CONFIG.lang,
-    country: CONFIG.country,
     max: CONFIG.maxResults,
   });
 
@@ -464,7 +477,7 @@ function searchNews(query, { force = false } = {}) {
       return r.json();
     })
     .then(data => {
-      if (data.errors) throw new Error(data.errors[0]?.message || 'Error de búsqueda');
+      if (data.errors) throw new Error(apiErrorMessage(data.errors, 'Error de búsqueda'));
       const articles = data.articles || [];
       cacheSet(cacheKey, articles);
       showApiSuccess(articles, 'Activa');
@@ -668,6 +681,7 @@ const CATEGORY_ICONS = {
   business: 'fa-chart-line',
   sports: 'fa-futbol',
   gaming: 'fa-gamepad',
+  colombia: 'fa-flag',
   health: 'fa-heartbeat',
   general: 'fa-newspaper',
 };

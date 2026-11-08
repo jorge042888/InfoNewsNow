@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { escapeHtml, interleave, formatDate, debounce } = require('../utils');
+const { escapeHtml, interleave, formatDate, debounce } = require('../public/utils');
 
 test('escapeHtml escapes HTML-significant characters', () => {
   assert.equal(

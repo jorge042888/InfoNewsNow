@@ -88,10 +88,11 @@ La app mitiga estos límites con caché local de 10 minutos, una sola request po
 
 ```
 technews-landing/
-├── index.html          # Estructura de la app
-├── styles.css          # Sistema de diseño editorial dark + modal del lector
-├── app.js              # Lógica: categorías, favoritos, compartir, caché, ticker, lector
-├── utils.js            # Utilidades puras (escapeHtml, formatDate, debounce…)
+├── public/             # Frontend estático (Vercel lo sirve como raíz)
+│   ├── index.html      #   Estructura de la app
+│   ├── styles.css      #   Sistema de diseño editorial dark + modal del lector
+│   ├── app.js          #   Lógica: categorías, favoritos, compartir, caché, ticker, lector
+│   └── utils.js        #   Utilidades puras (escapeHtml, formatDate, debounce…)
 ├── reader.js           # Extractor de contenido de la fuente (JSON-LD, sanitizado, limpieza)
 ├── lib/handlers.js     # Lógica compartida de API (proxy GNews + lector)
 ├── api/                # Funciones de Vercel (deploy en producción)

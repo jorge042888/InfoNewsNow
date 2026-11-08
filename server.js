@@ -17,6 +17,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATIC_FILES = new Set(['index.html', 'styles.css', 'app.js', 'utils.js']);
 
 function serveStatic(res, pathname) {
@@ -25,8 +26,8 @@ function serveStatic(res, pathname) {
     return sendJson(res, 404, { errors: [{ message: 'Not found' }] });
   }
 
-  const filePath = path.resolve(__dirname, relative);
-  if (!filePath.startsWith(__dirname + path.sep)) {
+  const filePath = path.resolve(PUBLIC_DIR, relative);
+  if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     return sendJson(res, 403, { errors: [{ message: 'Forbidden' }] });
   }
 

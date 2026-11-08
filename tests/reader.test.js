@@ -183,3 +183,46 @@ test('extractContent elimina imágenes dentro de enlaces y atributos peligrosos'
   assert.doesNotMatch(result.content, /data:image/);
   assert.doesNotMatch(result.content, /onclick|onerror/);
 });
+
+test('extractContent conserva espacios alrededor de tags inline y separa bloques descartados', () => {
+  const filler = '<p>' + 'Texto de relleno suficiente para superar el minimo. '.repeat(12) + '</p>';
+  const html = '<html><body><article>' +
+    '<p>Hola <strong>mundo</strong> y <a href="/x">enlace</a> fin.</p>' +
+    '<div>Primera linea</div><div>Segunda linea</div>' +
+    '<table><tr><td>Celda1</td><td>Celda2</td></tr></table>' +
+    filler + '</article></body></html>';
+  const out = extractContent(html, 'https://e.com/');
+  assert.equal(out.ok, true);
+  const visible = out.content.replace(/<[^>]+>/g, '');
+  assert.match(visible, /Hola mundo y enlace fin\./);
+  assert.match(visible, /Primera linea Segunda linea/);
+  assert.match(visible, /Celda1 Celda2/);
+  assert.doesNotMatch(out.content, /<\w+><p>/);
+});
+
+test('extractContent mantiene texto suelto con tags inline en un solo parrafo', () => {
+  const filler = '<p>' + 'Texto de relleno suficiente para superar el minimo. '.repeat(12) + '</p>';
+  const html = '<html><body><article><div>Suelto <b>bold</b> texto <a href="/z">link</a>.</div>' + filler + '</article></body></html>';
+  const out = extractContent(html, 'https://e.com/');
+  assert.match(out.content, /^<p>Suelto <b>bold<\/b> texto <a [^>]*>link<\/a>\.<\/p>/);
+});
+
+test('extractMetadata decodifica entidades nombradas del espanol sin doble decodificacion', () => {
+  const meta = extractMetadata('<title>Informaci&oacute;n &laquo;&uacute;til&raquo; &amp;lt;</title>', 'https://e.com/');
+  assert.equal(meta.title, 'Información «útil» &lt;');
+});
+
+test('extractContent no doble-escapa entidades nombradas en texto suelto', () => {
+  const filler = '<p>' + 'Texto de relleno suficiente para superar el minimo. '.repeat(12) + '</p>';
+  const html = '<html><body><article><div>Aqu&iacute; &amp; all&aacute; A&B</div>' + filler + '</article></body></html>';
+  const out = extractContent(html, 'https://e.com/');
+  assert.ok(out.content.includes('Aqu&iacute; &amp; all&aacute; A&amp;B'));
+  assert.ok(!out.content.includes('&amp;iacute;'));
+});
+
+test('extractContent separa tags inline descartados solo cuando separaban frases', () => {
+  const filler = '<p>' + 'Texto de relleno suficiente para superar el minimo. '.repeat(12) + '</p>';
+  const html = '<html><body><article><p>Ingresos.<span>Foto</span>: x <span>L</span>a casa Ho<span>la</span></p>' + filler + '</article></body></html>';
+  const out = extractContent(html, 'https://e.com/');
+  assert.ok(out.content.startsWith('<p>Ingresos. Foto: x La casa Hola</p>'));
+});

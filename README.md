@@ -13,6 +13,7 @@ Portal de noticias de **ciencia y tecnología** en español, con estética *edit
 - **Compartir artículos** — Web Share API o copiar enlace al portapapeles con toast de confirmación.
 - **Buscador** — debounce de 400 ms con cancelación de peticiones obsoletas.
 - **Lector interno** — al hacer clic en una tarjeta o en el hero se abre un modal con el texto completo extraído de la página fuente (eludiendo cookies, avisos y scripts), con imagen, autor y fechas de publicación/actualización destacadas; si la extracción falla, muestra un fallback con el resumen de GNews y el enlace original.
+- **Solo notas legibles** — el servidor verifica en paralelo cada nota de GNews con el lector y descarta las que no se pueden leer dentro de la app (paywalls, bloqueos, contenido insuficiente); nunca hay que abrir la fuente. Puede haber menos de 10 notas por categoría y la primera carga tarda ~2-5 s más (después queda en caché).
 - **Vistas grid y lista** — con animación de entrada y estados vacíos claros.
 - **Caché local** — TTL de 10 minutos por categoría/búsqueda para respetar la cuota diaria.
 - **Contador de cuota** — panel de estado con solicitudes del día (`N/100`), artículos y estado de la API.
@@ -80,7 +81,7 @@ La app mitiga estos límites con caché local de 10 minutos, una sola request po
 | Comando | Descripción |
 |---------|-------------|
 | `npm start` | Levanta el servidor en `http://localhost:3000` |
-| `npm test` | Ejecuta la suite con `node --test` (29 tests) |
+| `npm test` | Ejecuta la suite con `node --test` (36 tests) |
 
 ## Estructura de archivos
 
@@ -111,8 +112,8 @@ El navegador llama a rutas locales (`/api/v4/top-headlines`, `/api/v4/search`, `
 
 1. Valida método (solo GET) y whitelist de endpoints (`top-headlines`, `search`).
 2. Inyecta la API key como parámetro `apikey` (nunca llega al cliente).
-3. Hace el fetch a `https://gnews.io/api/v4/...` con timeout de 10 s.
-4. `/api/reader` descarga la página fuente (UA de navegador, gzip/br, redirects validados, cap de 2 MB), extrae el contenido con `reader.js` y lo devuelve en JSON con caché en memoria de 15 min.
+3. Hace el fetch a `https://gnews.io/api/v4/...` con timeout de 10 s y filtra los artículos que el lector no puede mostrar (deadline de 8 s; las notas verificadas quedan en la caché del lector).
+4. `/api/reader` descarga la página fuente (UA de navegador, gzip/br, charset detectado por header/`<meta>`, redirects validados, cap de 2 MB), extrae el contenido con `reader.js` y lo devuelve en JSON con caché en memoria de 15 min.
 
 ## Despliegue en Vercel
 

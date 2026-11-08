@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { handleApi, handleReader, readerTarget, collectQueryParams } = require('../lib/handlers.js');
+const { handleApi, handleReader, readerTarget, collectQueryParams, decodeBody, filterReadable } = require('../lib/handlers.js');
 const topHeadlinesHandler = require('../api/v4/top-headlines.js');
 const searchHandler = require('../api/v4/search.js');
 const readerHandler = require('../api/reader.js');
@@ -79,4 +79,27 @@ test('handleReader responde 405 para metodos que no sean GET', async () => {
   const res = mockRes();
   await handleReader({ method: 'POST', url: '/api/reader', query: {} }, res);
   assert.strictEqual(res.statusCode, 405);
+});
+
+test('decodeBody respeta charset del header, del meta y cae a utf-8', () => {
+  const latin = Buffer.from('<p>Información útil</p>', 'latin1');
+  assert.match(decodeBody(latin, 'text/html; charset=ISO-8859-1'), /Información útil/);
+  const withMeta = Buffer.from('<head><meta charset="windows-1252"></head><p>años</p>', 'latin1');
+  assert.match(decodeBody(withMeta, 'text/html'), /años/);
+  const utf = Buffer.from('<p>Información</p>', 'utf8');
+  assert.match(decodeBody(utf, 'text/html'), /Información/);
+  assert.match(decodeBody(utf, 'text/html; charset=charset-inexistente'), /Información/);
+});
+
+test('filterReadable descarta ok:false, rechazos y timeouts conservando el orden', async () => {
+  const articles = [{ url: 'a' }, { url: 'b' }, { url: 'c' }, { url: 'd' }, { url: 'e' }];
+  const readFn = (url) => {
+    if (url === 'a') return Promise.resolve({ ok: true });
+    if (url === 'b') return Promise.resolve({ ok: false });
+    if (url === 'c') return Promise.reject(new Error('boom'));
+    if (url === 'd') return new Promise(() => {});
+    return Promise.resolve({ ok: true });
+  };
+  const out = await filterReadable(articles, readFn, 50);
+  assert.deepStrictEqual(out.map(a => a.url), ['a', 'e']);
 });

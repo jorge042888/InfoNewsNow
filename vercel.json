@@ -3,5 +3,10 @@
   "framework": null,
   "installCommand": "",
   "buildCommand": "",
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "functions": {
+    "api/v4/*.js": {
+      "maxDuration": 30
+    }
+  }
 }

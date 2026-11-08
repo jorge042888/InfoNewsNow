@@ -121,20 +121,28 @@ function getMeta(html, ...keys) {
   return '';
 }
 
+// Entidades nombradas frecuentes en textos en español.
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  aacute: 'á', eacute: 'é', iacute: 'í', oacute: 'ó', uacute: 'ú', uuml: 'ü',
+  Aacute: 'Á', Eacute: 'É', Iacute: 'Í', Oacute: 'Ó', Uacute: 'Ú', Uuml: 'Ü',
+  ntilde: 'ñ', Ntilde: 'Ñ', iquest: '¿', iexcl: '¡', laquo: '«', raquo: '»',
+  hellip: '…', ndash: '–', mdash: '—', ldquo: '“', rdquo: '”', lsquo: '‘', rsquo: '’',
+  ordm: 'º', ordf: 'ª', euro: '€', copy: '©', reg: '®',
+};
+
 /**
- * Decodifica entidades HTML básicas (&amp;, &#39;, &#x27;...) para
- * obtener el texto real en metadatos.
+ * Decodifica entidades HTML (nombradas comunes y numéricas) para
+ * obtener el texto real en metadatos. Una sola pasada: evita decodificar
+ * dos veces (&amp;lt; debe quedar como "&lt;").
  */
 function decodeEntities(str) {
-  return String(str)
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)));
+  return String(str).replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z][a-z0-9]*));/gi, (full, dec, hex, name) => {
+    if (name) return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, name) ? NAMED_ENTITIES[name] : full;
+    const code = dec != null ? Number(dec) : parseInt(hex, 16);
+    if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return full;
+    return String.fromCodePoint(code);
+  });
 }
 
 /**
@@ -425,6 +433,17 @@ const ALLOWED_ATTRS = {
   img: ['src', 'alt', 'title'],
 };
 
+// Tags de bloque que se descartan (no están en la whitelist) pero que separan
+// palabras: se sustituyen por un espacio para no pegar "Primera"+"Segunda".
+const SEPARATOR_TAGS = new Set([
+  'div', 'section', 'article', 'table', 'tbody', 'thead', 'tfoot', 'tr', 'td', 'th',
+  'dl', 'dd', 'dt', 'header', 'footer', 'aside', 'main', 'nav', 'form', 'fieldset',
+  'details', 'summary', 'address', 'pre', 'center',
+]);
+
+// Bloques permitidos que, al quedar dentro de un <a>, se omiten (se deja un espacio).
+const LINK_SKIPPED_BLOCKS = new Set(['p', 'h2', 'h3', 'h4', 'blockquote', 'ul', 'ol', 'li', 'figure', 'figcaption']);
+
 const ALLOWED_TAGS = new Set([
   'p', 'h2', 'h3', 'h4', 'blockquote', 'ul', 'ol', 'li',
   'strong', 'em', 'b', 'i', 'br', 'a', 'img', 'figure', 'figcaption', 'hr',
@@ -470,6 +489,10 @@ function sanitizeFragment(fragment, baseUrl) {
     last = tagRe.lastIndex;
     const [full, slash, rawTag, rawAttrs] = m;
     const tag = rawTag.toLowerCase();
+    if (SEPARATOR_TAGS.has(tag)) {
+      out += ' ';
+      continue;
+    }
     if (slash) {
       if (stack.length && stack[stack.length - 1] === tag) {
         stack.pop();
@@ -481,12 +504,22 @@ function sanitizeFragment(fragment, baseUrl) {
             if (ALLOWED_TAGS.has(stack[i])) out += `</${stack[i]}>`;
           }
           stack.length = idx;
+        } else if (LINK_SKIPPED_BLOCKS.has(tag)) {
+          out += ' ';
+        } else if (!ALLOWED_TAGS.has(tag)) {
+          out += INLINE_MARK;
         }
       }
       continue;
     }
-    if (!ALLOWED_TAGS.has(tag)) continue;
-    if (stack.includes('a') && ['p', 'h2', 'h3', 'h4', 'blockquote', 'ul', 'ol', 'li', 'figure', 'figcaption'].includes(tag)) {
+    if (!ALLOWED_TAGS.has(tag)) {
+      // Tag inline descartado (span, small…): marcador para decidir al final si
+      // separaba palabras ("estados.<span>Foto" → "estados. Foto") o no ("<span>L</span>a").
+      out += INLINE_MARK;
+      continue;
+    }
+    if (stack.includes('a') && LINK_SKIPPED_BLOCKS.has(tag)) {
+      out += ' ';
       continue;
     }
 
@@ -529,7 +562,22 @@ function sanitizeFragment(fragment, baseUrl) {
   if (!stack.some(s => s === 'script' || s === 'style')) {
     out += fragment.slice(last);
   }
-  return out;
+  return resolveInlineMarks(out);
+}
+
+// Marcador (carácter de control, nunca presente en HTML real) de un tag inline descartado.
+const INLINE_MARK = '\u0001';
+
+/**
+ * Resuelve los marcadores de tags inline descartados: si separaban una
+ * palabra/frase de otra que empieza en mayúscula (o signo de apertura) tras
+ * una letra, dígito o puntuación, se convierten en un espacio; el resto se
+ * elimina sin dejar rastro (así "<span>L</span>a" y "Ho<span>la" no se parten).
+ */
+function resolveInlineMarks(html) {
+  return html
+    .replace(/([a-zñáéíóúü\d.!?:;,)”"»])\u0001+(?=[A-ZÁÉÍÓÚÑ¿¡“"«(])/g, '$1 ')
+    .replace(/\u0001/g, '');
 }
 
 /** Escapa caracteres especiales para usar dentro de atributos HTML. */
@@ -563,22 +611,35 @@ function wrapBareText(html) {
   const out = [];
   const stack = [];
   let buf = '';
+  const inTextBlock = () => stack.some(s => ['p', 'h2', 'h3', 'h4', 'blockquote', 'li', 'figcaption'].includes(s));
   const flush = () => {
-    const t = buf.replace(/\s+/g, ' ').trim();
+    const collapsed = buf.replace(/\s+/g, ' ');
     buf = '';
-    if (t.length < 2) return;
-    const inBlock = stack.some(s => ['p', 'h2', 'h3', 'h4', 'blockquote', 'li', 'figcaption'].includes(s));
-    out.push(inBlock ? t : `<p>${escapeText(t)}</p>`);
+    if (inTextBlock()) {
+      // Dentro de un bloque se conserva el espacio colapsado en los bordes:
+      // separa el texto de <a>/<strong>/<em> contiguos ("hola <b>mundo</b>").
+      if (collapsed) out.push(collapsed);
+      return;
+    }
+    const t = collapsed.trim();
+    if (t.replace(/<[^>]+>/g, '').trim().length < 2) return;
+    out.push(`<p>${escapeText(t)}</p>`);
   };
   for (const tok of tokens) {
     if (tok.type === 'text') {
       buf += tok.raw;
       continue;
     }
-    flush();
     const raw = tok.raw;
     const slash = raw[1] === '/';
-    const tag = (slash ? raw.slice(2) : raw.slice(1)).replace(/[>/].*$/, '').toLowerCase();
+    const tag = (/^<\/?([a-z][\w-]*)/i.exec(raw) || [])[1]?.toLowerCase() || '';
+    // Texto suelto con tags inline (<b>, <a>, <em>…): se mantiene en el mismo
+    // párrafo en lugar de fragmentarse en un <p> por cada trozo.
+    if (!inTextBlock() && INLINE_TAGS.has(tag)) {
+      buf += raw;
+      continue;
+    }
+    flush();
     if (slash) {
       const idx = stack.lastIndexOf(tag);
       if (idx !== -1) stack.length = idx;
@@ -591,8 +652,10 @@ function wrapBareText(html) {
   return out.join('');
 }
 
+// Escapa solo los "&" sueltos: cualquier entidad válida (&oacute;, &nbsp;, &#39;…)
+// se deja intacta para que el navegador la decodifique una sola vez.
 function escapeText(str) {
-  return str.replace(/&(?!(?:amp|lt|gt|quot|#\d+|#x[0-9a-f]+);)/gi, '&amp;');
+  return str.replace(/&(?!(?:[a-z][a-z0-9]*|#\d+|#x[0-9a-f]+);)/gi, '&amp;');
 }
 
 function dropJunkHeadings(html) {

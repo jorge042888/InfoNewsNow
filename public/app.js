@@ -320,7 +320,7 @@ function updateCategoryLabel() {
 function emptyMessage() {
   return STATE.mode === 'favorites'
     ? 'Aún no guardas artículos. Toca la estrella en cualquier nota.'
-    : 'No se encontraron artículos';
+    : 'No hay notas legibles por ahora. Prueba otra categoría o vuelve en unos minutos.';
 }
 
 function setApiStatus(online) {

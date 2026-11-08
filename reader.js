@@ -9,8 +9,14 @@
  *   2. findContentRoot  → localiza el bloque <article>/<main>/div con más texto
  *   3. stripNoise       → elimina scripts, estilos, nav, footer, forms...
  *   4. stripJunkNodes   → elimina nodos con id/class de publicidad/redes
- *   5. sanitizeFragment → whitelist de tags y attrs (anti-XSS), resuelve URLs
- *   6. drop… / cut…     → poda de títulos repetidos, ads, secciones de cierre
+ *   5. sanitizeFragment → whitelist de tags y attrs (anti-XSS), resuelve URLs;
+ *                         separa palabras al descartar bloques/inline
+ *   6. wrapBareText     → envuelve texto suelto en <p> conservando los espacios
+ *                         junto a tags inline
+ *   7. drop… / cut…     → poda de títulos repetidos, ads, secciones de cierre
+ *
+ * Si el texto visible final no llega a MIN_CONTENT_CHARS el resultado es
+ * { ok: false }: el servidor descarta esa nota de los resultados (lib/handlers.js).
  *
  * Seguridad: isSafeUrl aplica protección anti-SSRF (bloquea IPs privadas,
  * loopback y hosts internos) antes de hacer cualquier fetch.
@@ -474,6 +480,9 @@ function pickImgSrc(attrs) {
  *    se añade loading="lazy" y alt siempre presente
  *  - Cierra tags huérfanos para mantener el HTML bien formado
  *  - Descarta contenido dentro de <script>/<style>
+ *  - Tags de bloque descartados (SEPARATOR_TAGS) y bloques omitidos dentro de
+ *    <a> dejan un espacio; los inline descartados dejan INLINE_MARK, que
+ *    resolveInlineMarks convierte en espacio solo si separaba frases
  */
 function sanitizeFragment(fragment, baseUrl) {
   const tagRe = /<(\/?)([a-z][\w-]*)((?:\s+[^<>]*?)?)\/?>/gi;
@@ -605,6 +614,10 @@ function parseTags(html) {
  * (p, h2-h4, blockquote, li...). Así todo el contenido visible queda
  * estructurado en párrafos antes de pasarlo al modal.
  * Los textos de menos de 2 chars se descartan (restos de separación).
+ *
+ * Dentro de un bloque se conserva el espacio colapsado en los bordes del
+ * texto (no se hace trim), y el texto suelto con tags inline (<b>, <a>, <em>)
+ * se mantiene en un único <p> en lugar de fragmentarse.
  */
 function wrapBareText(html) {
   const tokens = parseTags(html);

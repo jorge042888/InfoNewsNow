@@ -17,6 +17,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+// Frontend estático en public/ (igual que en Vercel); solo se sirven los archivos listados.
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATIC_FILES = new Set(['index.html', 'styles.css', 'app.js', 'utils.js']);
 

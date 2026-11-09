@@ -25,6 +25,33 @@ const CATEGORIES = [
   { id: 'general', label: 'Todas', color: '#e4e4e7' },
 ];
 
+// Enlaces directos a medios (panel "Para estar más informado"). Editable:
+// cada grupo tiene un título, un icono Font Awesome y sus fuentes.
+const SOURCES = [
+  {
+    group: 'Internacional',
+    icon: 'fa-globe-americas',
+    items: [
+      { name: 'BBC Mundo', url: 'https://www.bbc.com/mundo', icon: 'fa-broadcast-tower', color: '#fca5a5' },
+      { name: 'DW Español', url: 'https://www.dw.com/es/', icon: 'fa-satellite-dish', color: '#7dd3fc' },
+      { name: 'France 24', url: 'https://www.france24.com/es/', icon: 'fa-tv', color: '#a5b4fc' },
+      { name: 'Euronews', url: 'https://es.euronews.com/', icon: 'fa-landmark', color: '#86efac' },
+      { name: 'CNN en Español', url: 'https://cnnespanol.cnn.com/', icon: 'fa-video', color: '#fdba74' },
+      { name: 'El País', url: 'https://elpais.com/', icon: 'fa-newspaper', color: '#e4e4e7' },
+    ],
+  },
+  {
+    group: 'Colombia',
+    icon: 'fa-flag',
+    items: [
+      { name: 'El Tiempo', url: 'https://www.eltiempo.com/', icon: 'fa-newspaper', color: '#fcd34d' },
+      { name: 'El Espectador', url: 'https://www.elespectador.com/', icon: 'fa-book-open', color: '#fcd34d' },
+      { name: 'Portafolio', url: 'https://www.portafolio.co/', icon: 'fa-chart-line', color: '#fcd34d' },
+      { name: 'La República', url: 'https://www.larepublica.co/', icon: 'fa-coins', color: '#fcd34d' },
+    ],
+  },
+];
+
 const STATE = {
   category: 'technology',
   mode: 'feed',
@@ -38,6 +65,7 @@ const STORAGE = {
   cache: 'infonewsnow:cache:',
   req: 'infonewsnow:req',
   favs: 'infonewsnow:favs',
+  sidebar: 'infonewsnow:sidebar',
   legacy: 'technews:',
 };
 
@@ -150,6 +178,22 @@ function toggleFavorite(article) {
   return added;
 }
 
+// Preferencias de la barra lateral: { hidden, collapsed: { favs, sources, status } }.
+function loadSidebarPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(STORAGE.sidebar)) || {};
+    return { hidden: !!p.hidden, collapsed: p.collapsed && typeof p.collapsed === 'object' ? p.collapsed : {} };
+  } catch {
+    return { hidden: false, collapsed: {} };
+  }
+}
+
+function saveSidebarPrefs(prefs) {
+  try {
+    localStorage.setItem(STORAGE.sidebar, JSON.stringify(prefs));
+  } catch { /* almacenamiento no disponible */ }
+}
+
 function categoryById(id) {
   return CATEGORIES.find(c => c.id === id);
 }
@@ -161,6 +205,8 @@ function init() {
   syncNav();
   updateStats();
   renderSidebarFavorites();
+  renderSources();
+  initSidebar();
   updateHeaderDate();
   updateClock();
   setInterval(updateClock, 1000);
@@ -191,6 +237,9 @@ function cacheDom() {
   DOM.favCount = document.getElementById('favCount');
   DOM.favSideCount = document.getElementById('favSideCount');
   DOM.favViewBtn = document.getElementById('favViewBtn');
+  DOM.sidebar = document.getElementById('sidebar');
+  DOM.sidebarToggle = document.getElementById('sidebarToggle');
+  DOM.sourcesList = document.getElementById('sourcesList');
   DOM.ticker = document.getElementById('ticker');
   DOM.tickerTrack = document.getElementById('tickerTrack');
   DOM.headerDate = document.getElementById('headerDate');
@@ -712,10 +761,77 @@ function renderSidebarFavorites() {
     return;
   }
   DOM.favList.innerHTML = favs.slice(0, 6).map(f => `
-    <a class="fav-list-item" href="${escapeHtml(f.url || '#')}" target="_blank" rel="noopener noreferrer">
-      <i class="far fa-newspaper"></i>
-      <span>${escapeHtml(f.title || 'Sin título')}</span>
-    </a>`).join('');
+    <div class="fav-row">
+      <a class="fav-list-item" href="${escapeHtml(f.url || '#')}" target="_blank" rel="noopener noreferrer">
+        <i class="far fa-newspaper"></i>
+        <span>${escapeHtml(f.title || 'Sin título')}</span>
+      </a>
+      <button class="fav-remove" type="button" data-url="${escapeHtml(f.url || '')}" title="Quitar de guardados" aria-label="Quitar de guardados"><i class="fas fa-times"></i></button>
+    </div>`).join('');
+}
+
+// Panel "Para estar más informado": enlaces directos agrupados.
+function renderSources() {
+  DOM.sourcesList.innerHTML = SOURCES.map(g => `
+    <div class="source-group">
+      <div class="source-group-title"><i class="fas ${g.icon}" aria-hidden="true"></i> ${escapeHtml(g.group)}</div>
+      ${g.items.map(i => `
+      <a class="source-item" href="${escapeHtml(i.url)}" target="_blank" rel="noopener noreferrer">
+        <span class="source-icon" style="--src:${i.color}"><i class="fas ${i.icon}" aria-hidden="true"></i></span>
+        <span class="source-name">${escapeHtml(i.name)}</span>
+        <i class="fas fa-arrow-up-right-from-square source-out" aria-hidden="true"></i>
+      </a>`).join('')}
+    </div>`).join('');
+}
+
+// Barra lateral: bloques plegables y botón para ocultarla; se recuerda la elección.
+function initSidebar() {
+  const prefs = loadSidebarPrefs();
+
+  const applyHidden = hidden => {
+    document.body.classList.toggle('sidebar-hidden', hidden);
+    DOM.sidebarToggle.setAttribute('aria-expanded', String(!hidden));
+    DOM.sidebar.setAttribute('aria-hidden', String(hidden));
+  };
+  applyHidden(prefs.hidden);
+
+  DOM.sidebarToggle.addEventListener('click', () => {
+    prefs.hidden = !document.body.classList.contains('sidebar-hidden');
+    applyHidden(prefs.hidden);
+    saveSidebarPrefs(prefs);
+  });
+
+  DOM.sidebar.querySelectorAll('.sidebar-block').forEach(block => {
+    const key = block.dataset.block;
+    const btn = block.querySelector('.section-toggle');
+    const setCollapsed = collapsed => {
+      block.classList.toggle('collapsed', collapsed);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+    };
+    setCollapsed(!!prefs.collapsed[key]);
+    btn.addEventListener('click', () => {
+      const collapsed = !block.classList.contains('collapsed');
+      setCollapsed(collapsed);
+      prefs.collapsed[key] = collapsed;
+      saveSidebarPrefs(prefs);
+    });
+  });
+
+  DOM.favList.addEventListener('click', e => {
+    const rm = e.target.closest('.fav-remove');
+    if (!rm) return;
+    const url = rm.dataset.url;
+    saveFavorites(getFavorites().filter(f => f.url !== url));
+    renderSidebarFavorites();
+    if (STATE.mode === 'favorites') {
+      showFavorites();
+    } else {
+      document.querySelectorAll('.news-card').forEach(card => {
+        const a = STATE.articles[Number(card.dataset.index)];
+        if (a && a.url === url) card.querySelector('.btn-fav')?.classList.remove('active');
+      });
+    }
+  });
 }
 
 const IMG_FALLBACK = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22340%22 height=%22180%22><rect fill=%22%2318181c%22 width=%22340%22 height=%22180%22/><text fill=%22%236e6e78%22 x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-family=%22sans-serif%22 font-size=%2213%22>Sin imagen</text></svg>';
@@ -820,15 +936,32 @@ function renderArticles(articles, emptyMsg) {
   const suffix = STATE.mode === 'favorites' ? ' guardados' : ' artículos';
   DOM.resultCount.textContent = `${articles.length}${suffix}`;
   DOM.articleCount.textContent = `${articles.length}`;
+  popNumber(DOM.resultCount);
+  popNumber(DOM.articleCount);
 }
 
 function showSkeleton() {
   DOM.skeletonGrid.style.display = 'grid';
   DOM.newsGrid.innerHTML = '';
+  setLoading(true);
 }
 
 function hideSkeleton() {
   DOM.skeletonGrid.style.display = 'none';
+  setLoading(false);
+}
+
+// Marca la pestaña activa y el botón de recargar como "cargando" (spinner/giro).
+function setLoading(on) {
+  document.body.classList.toggle('is-loading', on);
+  DOM.refreshBtn.classList.toggle('spinning', on);
+}
+
+// Pequeño "pop" en un contador cuando cambia su valor.
+function popNumber(el) {
+  el.classList.remove('pop');
+  void el.offsetWidth; // reinicia la animación
+  el.classList.add('pop');
 }
 
 function showError(msg) {

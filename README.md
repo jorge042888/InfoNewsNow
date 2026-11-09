@@ -8,6 +8,8 @@ Portal de noticias de **ciencia y tecnología** en español, con estética *edit
 - **Ticker de últimas noticias** — franja animada con los últimos titulares (sin requests extra).
 - **9 pestañas** — Tecnología, Ciencia, **Colombia**, Mundo, Negocios, Deportes, Gaming, Salud y Todas. Todo es **global en español** (más volumen y relevancia que filtrar por país) excepto **Colombia**, la sección local (`country=co`, noticias generales de medios colombianos). **Gaming** no existe en GNews: se resuelve con una búsqueda global en español (título y descripción). Entretenimiento se retiró: en Colombia era casi todo farándula.
 - **Solo noticias que merecen la pena** — `lib/quality.js` descarta en el servidor loterías, horóscopos, farándula, chismes, influencers, contenido patrocinado y fuentes tabloides (listas editables `BLOCKED_SOURCES` y `BLOCKED_TOPICS`). Como consecuencia, algunas categorías devuelven pocas notas.
+- **Barra lateral configurable** — bloques Favoritos, "Para estar más informado" (enlaces directos a BBC Mundo, DW, France 24, Euronews, CNN en Español, El País y medios colombianos; editables en `SOURCES` de `public/app.js`) y Estado. Cada bloque se pliega y toda la barra se oculta con el botón de la cabecera; la elección se recuerda en `localStorage`.
+- **Animaciones** — transición al cambiar de sección, indicador de carga en la pestaña y el botón de recarga, y pliegue suave de la barra (se desactivan con `prefers-reduced-motion`).
 - **Favoritos / leer después** — estrella por artículo, panel en el sidebar y vista propia (máx. 50, persistente en `localStorage`).
 - **Compartir artículos** — Web Share API o copiar enlace al portapapeles con toast de confirmación.
 - **Buscador** — debounce de 400 ms con cancelación de peticiones obsoletas.

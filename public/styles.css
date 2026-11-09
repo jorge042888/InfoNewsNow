@@ -1728,3 +1728,267 @@ input:focus-visible {
     letter-spacing: 0.08em;
   }
 }
+
+/* ── Barra lateral: bloques plegables y fuentes ── */
+.sidebar-block + .sidebar-block {
+  margin-top: 18px;
+}
+
+button.section-header {
+  width: 100%;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: color var(--transition);
+}
+
+button.section-header:hover {
+  color: var(--text-2);
+}
+
+.section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title > i {
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.section-chevron {
+  font-size: 10px;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-block.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Pliegue animado sin conocer la altura del contenido. */
+.sidebar-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s ease, opacity 0.25s ease;
+}
+
+.sidebar-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sidebar-block.collapsed .sidebar-collapse {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.fav-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fav-row .fav-list-item {
+  flex: 1;
+  min-width: 0;
+  padding-right: 30px;
+}
+
+.fav-remove {
+  position: absolute;
+  right: 16px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition), color var(--transition);
+}
+
+.fav-row:hover .fav-remove,
+.fav-remove:focus-visible {
+  opacity: 1;
+}
+
+.fav-remove:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0 4px;
+}
+
+.source-group-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 20px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 12px;
+  padding: 7px 12px;
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: background var(--transition), color var(--transition), transform var(--transition);
+}
+
+.source-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+.source-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--src, var(--accent));
+  background: color-mix(in srgb, var(--src, var(--accent)) 14%, transparent);
+}
+
+.source-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-out {
+  font-size: 9px;
+  color: var(--text-3);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.source-item:hover .source-out {
+  opacity: 1;
+}
+
+/* Ocultar toda la barra (se anima el ancho). */
+.sidebar {
+  transition: width 0.3s ease, padding 0.3s ease, border-color 0.3s ease;
+}
+
+body.sidebar-hidden .sidebar {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right-color: transparent;
+  overflow: hidden;
+}
+
+.sidebar-toggle {
+  padding: 0 12px;
+}
+
+@media (max-width: 1024px) {
+  .sidebar-toggle {
+    display: none;
+  }
+}
+
+/* ── Animaciones de carga y de cambio de sección ── */
+.tab {
+  position: relative;
+}
+
+.tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.tab.active::after {
+  transform: scaleX(1);
+}
+
+body.is-loading .tab.active .tab-icon i {
+  animation: tab-pulse 1s ease-in-out infinite;
+}
+
+.refresh-btn.spinning .tab-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+.pop {
+  animation: pop 0.35s ease;
+}
+
+.news-grid {
+  animation: grid-in 0.3s ease;
+}
+
+@keyframes tab-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@keyframes grid-in {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-collapse,
+  .section-chevron,
+  .source-item,
+  .tab::after,
+  .news-grid,
+  .pop,
+  body.is-loading .tab.active .tab-icon i,
+  .refresh-btn.spinning .tab-icon {
+    animation: none;
+    transition: none;
+  }
+
+  .source-item:hover {
+    transform: none;
+  }
+}

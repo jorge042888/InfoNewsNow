@@ -16,6 +16,9 @@
 
     <!-- Header -->
     <header class="app-header">
+      <button class="header-btn sidebar-toggle" id="sidebarToggle" type="button" title="Mostrar u ocultar la barra lateral" aria-label="Mostrar u ocultar la barra lateral" aria-expanded="true" aria-controls="sidebar">
+        <i class="fas fa-bars"></i>
+      </button>
       <div class="brand">
         <span class="brand-icon"><i class="fas fa-newspaper"></i></span>
         <span class="brand-name">InfoNews<span class="brand-accent">Now</span></span>
@@ -89,34 +92,61 @@
 
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
-        <div class="section-header">Favoritos <span class="section-count" id="favSideCount">0</span></div>
-        <div class="sidebar-item" data-action="favorites-view">
-          <span class="si-icon"><i class="fas fa-bookmark"></i></span>
-          ver guardados
-        </div>
-        <div class="fav-list" id="favList">
-          <div class="fav-empty">Sin artículos guardados</div>
-        </div>
+        <!-- Favoritos -->
+        <section class="sidebar-block" data-block="favs">
+          <button class="section-header section-toggle" type="button" aria-expanded="true" aria-controls="blockFavs">
+            <span class="section-title"><i class="fas fa-bookmark"></i> Favoritos <span class="section-count" id="favSideCount">0</span></span>
+            <i class="fas fa-chevron-down section-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="sidebar-collapse" id="blockFavs"><div class="sidebar-collapse-inner">
+            <div class="sidebar-item" data-action="favorites-view">
+              <span class="si-icon"><i class="fas fa-bookmark"></i></span>
+              ver guardados
+            </div>
+            <div class="fav-list" id="favList">
+              <div class="fav-empty">Sin artículos guardados</div>
+            </div>
+          </div></div>
+        </section>
 
-        <div class="section-header" style="margin-top: 24px;">Estado</div>
-        <div class="status-panel" id="statusPanel">
-          <div class="stat-row">
-            <span class="stat-label">Solicitudes</span>
-            <span class="stat-value" id="requestCount">0/100 hoy</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Artículos</span>
-            <span class="stat-value" id="articleCount">0</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Caché</span>
-            <span class="stat-value" id="cacheStatus">—</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Estado</span>
-            <span class="stat-value green" id="apiStatus">—</span>
-          </div>
-        </div>
+        <!-- Fuentes directas -->
+        <section class="sidebar-block" data-block="sources">
+          <button class="section-header section-toggle" type="button" aria-expanded="true" aria-controls="blockSources">
+            <span class="section-title"><i class="fas fa-compass"></i> Para estar más informado</span>
+            <i class="fas fa-chevron-down section-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="sidebar-collapse" id="blockSources"><div class="sidebar-collapse-inner">
+            <div class="sources-list" id="sourcesList"></div>
+          </div></div>
+        </section>
+
+        <!-- Estado -->
+        <section class="sidebar-block" data-block="status">
+          <button class="section-header section-toggle" type="button" aria-expanded="true" aria-controls="blockStatus">
+            <span class="section-title"><i class="fas fa-signal"></i> Estado</span>
+            <i class="fas fa-chevron-down section-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="sidebar-collapse" id="blockStatus"><div class="sidebar-collapse-inner">
+            <div class="status-panel" id="statusPanel">
+              <div class="stat-row">
+                <span class="stat-label">Solicitudes</span>
+                <span class="stat-value" id="requestCount">0/100 hoy</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Artículos</span>
+                <span class="stat-value" id="articleCount">0</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Caché</span>
+                <span class="stat-value" id="cacheStatus">—</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Estado</span>
+                <span class="stat-value green" id="apiStatus">—</span>
+              </div>
+            </div>
+          </div></div>
+        </section>
       </aside>
 
       <!-- Content -->

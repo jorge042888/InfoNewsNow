@@ -26,31 +26,28 @@ const CATEGORIES = [
 ];
 
 // Enlaces directos a medios (panel "Para estar más informado"). Editable.
-// `logo` es el nombre del archivo en public/img/fuentes/ (svg, png, webp o jpg).
 const SOURCES = [
   {
     group: 'Internacional',
     items: [
-      { name: 'BBC Mundo', url: 'https://www.bbc.com/mundo', logo: 'bbc-mundo' },
-      { name: 'DW Español', url: 'https://www.dw.com/es/', logo: 'dw-espanol' },
-      { name: 'France 24', url: 'https://www.france24.com/es/', logo: 'france-24' },
-      { name: 'Euronews', url: 'https://es.euronews.com/', logo: 'euronews' },
-      { name: 'CNN en Español', url: 'https://cnnespanol.cnn.com/', logo: 'cnn-espanol' },
-      { name: 'El País', url: 'https://elpais.com/', logo: 'el-pais' },
+      { name: 'BBC Mundo', url: 'https://www.bbc.com/mundo' },
+      { name: 'DW Español', url: 'https://www.dw.com/es/' },
+      { name: 'France 24', url: 'https://www.france24.com/es/' },
+      { name: 'Euronews', url: 'https://es.euronews.com/' },
+      { name: 'CNN en Español', url: 'https://cnnespanol.cnn.com/' },
+      { name: 'El País', url: 'https://elpais.com/' },
     ],
   },
   {
     group: 'Colombia',
     items: [
-      { name: 'El Tiempo', url: 'https://www.eltiempo.com/', logo: 'el-tiempo' },
-      { name: 'El Espectador', url: 'https://www.elespectador.com/', logo: 'el-espectador' },
-      { name: 'Portafolio', url: 'https://www.portafolio.co/', logo: 'portafolio' },
-      { name: 'La República', url: 'https://www.larepublica.co/', logo: 'la-republica' },
+      { name: 'El Tiempo', url: 'https://www.eltiempo.com/' },
+      { name: 'El Espectador', url: 'https://www.elespectador.com/' },
+      { name: 'Portafolio', url: 'https://www.portafolio.co/' },
+      { name: 'La República', url: 'https://www.larepublica.co/' },
     ],
   },
 ];
-
-const LOGO_EXTS = ['svg', 'png', 'webp', 'jpg'];
 
 const STATE = {
   category: 'technology',
@@ -777,25 +774,10 @@ function renderSources() {
       <div class="source-group-title">${escapeHtml(g.group)}</div>
       ${g.items.map(i => `
       <a class="source-item" href="${escapeHtml(i.url)}" target="_blank" rel="noopener noreferrer">
-        <span class="source-logo" data-initial="${escapeHtml(i.name.charAt(0))}">
-          <img src="img/fuentes/${i.logo}.${LOGO_EXTS[0]}" data-logo="${i.logo}" data-ext="0" alt="" loading="lazy">
-        </span>
+        <span class="source-dot" aria-hidden="true"></span>
         <span class="source-name">${escapeHtml(i.name)}</span>
       </a>`).join('')}
     </div>`).join('');
-
-  // Si el logo no existe con una extensión, prueba la siguiente; al final queda la inicial.
-  DOM.sourcesList.querySelectorAll('.source-logo img').forEach(img => {
-    img.addEventListener('error', () => {
-      const next = Number(img.dataset.ext) + 1;
-      if (next < LOGO_EXTS.length) {
-        img.dataset.ext = String(next);
-        img.src = `img/fuentes/${img.dataset.logo}.${LOGO_EXTS[next]}`;
-      } else {
-        img.remove();
-      }
-    });
-  });
 }
 
 // Barra lateral: bloques plegables y botón para ocultarla; se recuerda la elección.

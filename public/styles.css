@@ -1993,35 +1993,20 @@ body.is-loading .tab.active .tab-icon i {
   }
 }
 
-/* ── Logos de fuentes y manija para ocultar el panel ── */
-.source-logo {
-  position: relative;
-  width: 26px;
-  height: 26px;
+/* ── Puntos de fuentes y manija para ocultar el panel ── */
+.source-dot {
+  width: 7px;
+  height: 7px;
   flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 7px;
-  background: var(--surface-3);
-  overflow: hidden;
+  margin: 0 8px 0 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  transition: transform var(--transition), box-shadow var(--transition);
 }
 
-/* Inicial de respaldo; el logo, si existe, la tapa. */
-.source-logo::before {
-  content: attr(data-initial);
-  position: absolute;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-2);
-}
-
-.source-logo img {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 3px;
-  background: #fff;
+.source-item:hover .source-dot {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .sidebar-handle {

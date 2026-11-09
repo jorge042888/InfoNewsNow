@@ -1,0 +1,13 @@
+Logos de los medios del panel "Para estar mas informado".
+
+Guarda aqui un archivo por medio, con EXACTAMENTE estos nombres
+(svg, png, webp o jpg; el nombre base es lo que importa):
+
+  bbc-mundo      dw-espanol      france-24       euronews
+  cnn-espanol    el-pais         el-tiempo       el-espectador
+  portafolio     la-republica
+
+Ejemplo: public/img/fuentes/bbc-mundo.svg
+
+Recomendado: SVG o PNG cuadrado con fondo transparente, minimo 96x96 px.
+Si falta un logo, el panel muestra la inicial del medio como respaldo.

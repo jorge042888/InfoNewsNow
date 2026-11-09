@@ -1992,3 +1992,67 @@ body.is-loading .tab.active .tab-icon i {
     transform: none;
   }
 }
+
+/* ── Logos de fuentes y manija para ocultar el panel ── */
+.source-logo {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+/* Inicial de respaldo; el logo, si existe, la tapa. */
+.source-logo::before {
+  content: attr(data-initial);
+  position: absolute;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.source-logo img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+  background: #fff;
+}
+
+.sidebar-handle {
+  flex-shrink: 0;
+  width: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  border: 0;
+  border-right: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-handle:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.sidebar-handle i {
+  transition: transform 0.3s ease;
+}
+
+body.sidebar-hidden .sidebar-handle i {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 1024px) {
+  .sidebar-handle {
+    display: none;
+  }
+}

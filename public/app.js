@@ -25,32 +25,32 @@ const CATEGORIES = [
   { id: 'general', label: 'Todas', color: '#e4e4e7' },
 ];
 
-// Enlaces directos a medios (panel "Para estar más informado"). Editable:
-// cada grupo tiene un título, un icono Font Awesome y sus fuentes.
+// Enlaces directos a medios (panel "Para estar más informado"). Editable.
+// `logo` es el nombre del archivo en public/img/fuentes/ (svg, png, webp o jpg).
 const SOURCES = [
   {
     group: 'Internacional',
-    icon: 'fa-globe-americas',
     items: [
-      { name: 'BBC Mundo', url: 'https://www.bbc.com/mundo', icon: 'fa-broadcast-tower', color: '#fca5a5' },
-      { name: 'DW Español', url: 'https://www.dw.com/es/', icon: 'fa-satellite-dish', color: '#7dd3fc' },
-      { name: 'France 24', url: 'https://www.france24.com/es/', icon: 'fa-tv', color: '#a5b4fc' },
-      { name: 'Euronews', url: 'https://es.euronews.com/', icon: 'fa-landmark', color: '#86efac' },
-      { name: 'CNN en Español', url: 'https://cnnespanol.cnn.com/', icon: 'fa-video', color: '#fdba74' },
-      { name: 'El País', url: 'https://elpais.com/', icon: 'fa-newspaper', color: '#e4e4e7' },
+      { name: 'BBC Mundo', url: 'https://www.bbc.com/mundo', logo: 'bbc-mundo' },
+      { name: 'DW Español', url: 'https://www.dw.com/es/', logo: 'dw-espanol' },
+      { name: 'France 24', url: 'https://www.france24.com/es/', logo: 'france-24' },
+      { name: 'Euronews', url: 'https://es.euronews.com/', logo: 'euronews' },
+      { name: 'CNN en Español', url: 'https://cnnespanol.cnn.com/', logo: 'cnn-espanol' },
+      { name: 'El País', url: 'https://elpais.com/', logo: 'el-pais' },
     ],
   },
   {
     group: 'Colombia',
-    icon: 'fa-flag',
     items: [
-      { name: 'El Tiempo', url: 'https://www.eltiempo.com/', icon: 'fa-newspaper', color: '#fcd34d' },
-      { name: 'El Espectador', url: 'https://www.elespectador.com/', icon: 'fa-book-open', color: '#fcd34d' },
-      { name: 'Portafolio', url: 'https://www.portafolio.co/', icon: 'fa-chart-line', color: '#fcd34d' },
-      { name: 'La República', url: 'https://www.larepublica.co/', icon: 'fa-coins', color: '#fcd34d' },
+      { name: 'El Tiempo', url: 'https://www.eltiempo.com/', logo: 'el-tiempo' },
+      { name: 'El Espectador', url: 'https://www.elespectador.com/', logo: 'el-espectador' },
+      { name: 'Portafolio', url: 'https://www.portafolio.co/', logo: 'portafolio' },
+      { name: 'La República', url: 'https://www.larepublica.co/', logo: 'la-republica' },
     ],
   },
 ];
+
+const LOGO_EXTS = ['svg', 'png', 'webp', 'jpg'];
 
 const STATE = {
   category: 'technology',
@@ -774,14 +774,28 @@ function renderSidebarFavorites() {
 function renderSources() {
   DOM.sourcesList.innerHTML = SOURCES.map(g => `
     <div class="source-group">
-      <div class="source-group-title"><i class="fas ${g.icon}" aria-hidden="true"></i> ${escapeHtml(g.group)}</div>
+      <div class="source-group-title">${escapeHtml(g.group)}</div>
       ${g.items.map(i => `
       <a class="source-item" href="${escapeHtml(i.url)}" target="_blank" rel="noopener noreferrer">
-        <span class="source-icon" style="--src:${i.color}"><i class="fas ${i.icon}" aria-hidden="true"></i></span>
+        <span class="source-logo" data-initial="${escapeHtml(i.name.charAt(0))}">
+          <img src="img/fuentes/${i.logo}.${LOGO_EXTS[0]}" data-logo="${i.logo}" data-ext="0" alt="" loading="lazy">
+        </span>
         <span class="source-name">${escapeHtml(i.name)}</span>
-        <i class="fas fa-arrow-up-right-from-square source-out" aria-hidden="true"></i>
       </a>`).join('')}
     </div>`).join('');
+
+  // Si el logo no existe con una extensión, prueba la siguiente; al final queda la inicial.
+  DOM.sourcesList.querySelectorAll('.source-logo img').forEach(img => {
+    img.addEventListener('error', () => {
+      const next = Number(img.dataset.ext) + 1;
+      if (next < LOGO_EXTS.length) {
+        img.dataset.ext = String(next);
+        img.src = `img/fuentes/${img.dataset.logo}.${LOGO_EXTS[next]}`;
+      } else {
+        img.remove();
+      }
+    });
+  });
 }
 
 // Barra lateral: bloques plegables y botón para ocultarla; se recuerda la elección.
@@ -795,11 +809,13 @@ function initSidebar() {
   };
   applyHidden(prefs.hidden);
 
-  DOM.sidebarToggle.addEventListener('click', () => {
+  const toggleSidebar = () => {
     prefs.hidden = !document.body.classList.contains('sidebar-hidden');
     applyHidden(prefs.hidden);
     saveSidebarPrefs(prefs);
-  });
+  };
+  DOM.sidebarToggle.addEventListener('click', toggleSidebar);
+  document.getElementById('sidebarHandle').addEventListener('click', toggleSidebar);
 
   DOM.sidebar.querySelectorAll('.sidebar-block').forEach(block => {
     const key = block.dataset.block;

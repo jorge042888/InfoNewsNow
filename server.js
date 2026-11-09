@@ -14,16 +14,19 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
 };
 
 // Frontend estático en public/ (igual que en Vercel); solo se sirven los archivos listados.
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const STATIC_FILES = new Set(['index.html', 'styles.css', 'app.js', 'utils.js']);
+// Logos de medios: public/img/fuentes/<nombre>.(svg|png|webp|jpg)
+const LOGO_RE = /^img\/fuentes\/[a-z0-9-]+\.(svg|png|webp|jpg)$/;
 
 function serveStatic(res, pathname) {
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '');
-  if (!STATIC_FILES.has(relative)) {
+  if (!STATIC_FILES.has(relative) && !LOGO_RE.test(relative)) {
     return sendJson(res, 404, { errors: [{ message: 'Not found' }] });
   }
 

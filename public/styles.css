@@ -1910,12 +1910,6 @@ body.sidebar-hidden .sidebar {
   padding: 0 12px;
 }
 
-@media (max-width: 1024px) {
-  .sidebar-toggle {
-    display: none;
-  }
-}
-
 /* ── Animaciones de carga y de cambio de sección ── */
 .tab {
   position: relative;
@@ -2039,5 +2033,74 @@ body.sidebar-hidden .sidebar-handle i {
 @media (max-width: 1024px) {
   .sidebar-handle {
     display: none;
+  }
+}
+
+/* ── Móvil / tablet: el panel lateral es un cajón que se abre con el botón ☰ ── */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sidebar,
+  body.sidebar-hidden .sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 150;
+    width: min(86vw, 320px);
+    padding: 20px 0 32px;
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+    overflow-y: auto;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform 0.3s ease, visibility 0s linear 0.3s;
+  }
+
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.3s ease, visibility 0s;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  .sidebar-toggle {
+    display: flex;
+    padding: 0 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    gap: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-backdrop {
+    transition: none !important;
   }
 }

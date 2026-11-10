@@ -791,12 +791,36 @@ function initSidebar() {
   };
   applyHidden(prefs.hidden);
 
+  // En pantallas ≤1024px el panel es un cajón (body.sidebar-open); en escritorio se oculta.
+  const isMobile = () => window.matchMedia('(max-width: 1024px)').matches;
+  const setDrawer = open => {
+    document.body.classList.toggle('sidebar-open', open);
+    DOM.sidebarToggle.setAttribute('aria-expanded', String(open));
+    DOM.sidebar.setAttribute('aria-hidden', String(!open));
+  };
   const toggleSidebar = () => {
+    if (isMobile()) {
+      setDrawer(!document.body.classList.contains('sidebar-open'));
+      return;
+    }
     prefs.hidden = !document.body.classList.contains('sidebar-hidden');
     applyHidden(prefs.hidden);
     saveSidebarPrefs(prefs);
   };
+  if (isMobile()) setDrawer(false);
+  document.getElementById('sidebarBackdrop').addEventListener('click', () => setDrawer(false));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) setDrawer(false);
+  });
+  window.matchMedia('(max-width: 1024px)').addEventListener('change', e => {
+    if (e.matches) setDrawer(false);
+    else {
+      document.body.classList.remove('sidebar-open');
+      applyHidden(prefs.hidden);
+    }
+  });
   DOM.sidebarToggle.addEventListener('click', toggleSidebar);
+  DOM.sidebarFavItem.addEventListener('click', () => { if (isMobile()) setDrawer(false); });
   document.getElementById('sidebarHandle').addEventListener('click', toggleSidebar);
 
   DOM.sidebar.querySelectorAll('.sidebar-block').forEach(block => {
